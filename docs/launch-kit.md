@@ -20,7 +20,7 @@ Introducing Backsmith: a conflict-aware CLI for generating Spring Boot backends
 
 Backend generators are useful until they overwrite code, hide architecture decisions, or produce a project that cannot compile. I built Backsmith around a different contract: plan first, show every operation, reject conflicts by default, and only apply a validated deterministic plan.
 
-The supported stack is Java 21, Spring Boot 3.5, Maven, PostgreSQL, Flyway, JPA, OpenAPI, Docker, Kubernetes, and GitHub Actions. Backsmith 1.0 generates seven architecture layouts and records generation decisions in `backsmith.yaml`.
+The supported stack is Java 21, Spring Boot 3.5, Maven, PostgreSQL, MySQL, MariaDB, SQL Server, Oracle, H2, MongoDB, Flyway, JPA, Spring Data MongoDB, OpenAPI, Docker, Kubernetes, and GitHub Actions. Backsmith 1.0 generates seven architecture layouts and records generation decisions in `backsmith.yaml`.
 
 Try a no-write preview:
 
@@ -71,7 +71,7 @@ Version 1.0 is freely available under Apache-2.0, and the README distinguishes s
 
 I have released Backsmith, a free and open-source Java 21 CLI for generating safer Spring Boot backend foundations.
 
-Its core rule is simple: plan every filesystem operation, show conflicts, and never silently overwrite user code. Version 1.0 supports seven architecture layouts plus PostgreSQL, Flyway, JPA, OpenAPI, security, messaging, caching, observability, Docker, Kubernetes, and GitHub Actions.
+Its core rule is simple: plan every filesystem operation, show conflicts, and never silently overwrite user code. Version 1.0 supports seven architecture layouts plus seven selectable databases, relational and document persistence, OpenAPI, security, messaging, caching, observability, Docker, Kubernetes, and GitHub Actions.
 
 Try it, inspect the architecture, or contribute:
 https://github.com/SanketKudale/backsmith

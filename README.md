@@ -38,7 +38,8 @@ Backsmith 1.0 is a free, open-source Java 21 CLI for deterministic, conflict-awa
 - versioned per-file ownership hashes, history, module metadata, and API-contract metadata
 - Spring Boot 3 / Java 21 starter generation
 - layered, hexagonal, modular-monolith, clean, onion, CQRS, and microservice layouts
-- PostgreSQL, Flyway, JPA, validation, Problem Details, idempotency, and audit logging
+- PostgreSQL, MySQL, MariaDB, SQL Server, Oracle, H2, and MongoDB generation
+- JPA/Flyway for relational databases, Spring Data MongoDB for document persistence, validation, Problem Details, idempotency, and audit logging
 - basic, session, JWT, OAuth2/OIDC resource-server security, plus a persistent JWT authentication starter
 - Kafka, transactional outbox, idempotent consumers, Redis, Resilience4j, metrics, tracing, and health probes
 - customer and payment starters, OpenAPI-driven APIs, and architecture-aware component scaffolding
@@ -106,6 +107,11 @@ backsmith create payment-service \
   --docker \
   --yes
 ```
+
+Choose `postgresql`, `mysql`, `mariadb`, `sqlserver`, `oracle`, `h2`, or `mongodb`.
+Backsmith generates the matching driver, persistence configuration, migrations where
+applicable, Docker Compose service, and real-database integration test. H2 is available
+only when explicitly selected; it is never used as a substitute for another database.
 
 Preview without writing:
 

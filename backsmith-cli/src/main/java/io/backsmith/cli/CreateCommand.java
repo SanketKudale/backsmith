@@ -205,9 +205,33 @@ public final class CreateCommand implements Callable<Integer> {
             throw new IllegalArgumentException(
                     "runtime.java_version: production adapter requires Java 21");
         }
-        requireOneOf(database, "database", "postgresql");
-        requireOneOf(persistence, "persistence", "jpa");
-        requireOneOf(migration, "migration", "flyway");
+        requireOneOf(
+                database,
+                "database",
+                "postgresql",
+                "mysql",
+                "mariadb",
+                "sqlserver",
+                "oracle",
+                "h2",
+                "mongodb");
+        if (database.equalsIgnoreCase("mongodb")) {
+            if (persistence.equalsIgnoreCase("jpa")) persistence = "mongodb";
+            if (migration.equalsIgnoreCase("flyway")) migration = "none";
+            requireOneOf(persistence, "persistence", "mongodb");
+            requireOneOf(migration, "migration", "none");
+            if (starterAuth || !starterModules.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "starter modules currently require a relational database");
+            }
+            if (!multiTenancy.equalsIgnoreCase("none")) {
+                throw new IllegalArgumentException(
+                        "multi-tenancy currently requires a relational database");
+            }
+        } else {
+            requireOneOf(persistence, "persistence", "jpa");
+            requireOneOf(migration, "migration", "flyway");
+        }
         requireOneOf(security, "security", "none", "basic", "session", "jwt", "oauth2", "oidc");
         requireOneOf(messaging, "messaging", "none", "kafka");
         requireOneOf(cache, "cache", "none", "redis");
@@ -240,6 +264,10 @@ public final class CreateCommand implements Callable<Integer> {
         var architectureConfiguration =
                 new ProjectConfiguration.ArchitectureConfiguration(
                         Architecture.parse(architecture), true);
+        if (database.equalsIgnoreCase("mongodb")) {
+            persistence = "mongodb";
+            migration = "none";
+        }
         var features =
                 new ProjectConfiguration.Features(
                         database,
@@ -321,7 +349,11 @@ public final class CreateCommand implements Callable<Integer> {
                         scanner,
                         "Architecture (layered/hexagonal/modular-monolith/clean/onion/cqrs/microservice)",
                         architecture);
-        database = prompt(scanner, "Database", database);
+        database =
+                prompt(
+                        scanner,
+                        "Database (postgresql/mysql/mariadb/sqlserver/oracle/h2/mongodb)",
+                        database);
         persistence = prompt(scanner, "Persistence", persistence);
         migration = prompt(scanner, "Migration tool", migration);
         security = prompt(scanner, "Authentication mode", security);

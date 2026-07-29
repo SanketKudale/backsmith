@@ -41,7 +41,7 @@ public final class SpringComponentGenerator {
             case "repository" ->
                     repository(configuration, requiredName(safeName, generator), safeModule);
             case "service" -> service(configuration, requiredName(safeName, generator), safeModule);
-            case "migration" -> migration(requiredName(safeName, generator), fields);
+            case "migration" -> migration(configuration, requiredName(safeName, generator), fields);
             case "event" ->
                     event(configuration, requiredName(safeName, generator), safeModule, fields);
             case "producer" ->
@@ -99,18 +99,24 @@ public final class SpringComponentGenerator {
                         configuration.project().basePackage(),
                         module,
                         configuration.architecture().type());
+        DatabaseProfile database = DatabaseProfile.from(configuration.features().database());
+        if (database.mongodb()) {
+            return configuration.architecture().type() == Architecture.LAYERED
+                    ? layeredMongoEntity(layout, name, fields)
+                    : portBasedMongoEntity(layout, name, fields);
+        }
         return configuration.architecture().type() == Architecture.LAYERED
-                ? layeredEntity(layout, name, fields)
-                : portBasedEntity(layout, name, fields);
+                ? layeredEntity(layout, name, fields, database)
+                : portBasedEntity(layout, name, fields, database);
     }
 
     private Map<Path, String> layeredEntity(
-            Layout layout, String name, List<FieldDefinition> fields) {
+            Layout layout, String name, List<FieldDefinition> fields, DatabaseProfile database) {
         var generated = new LinkedHashMap<Path, String>();
         addEnums(generated, layout.domainPackage(), name, fields);
         generated.put(
                 source(layout.domainPackage(), name + ".java"),
-                jpaEntity(layout.domainPackage(), layout.domainPackage(), name, fields));
+                jpaEntity(layout.domainPackage(), layout.domainPackage(), name, fields, database));
         String idType = javaType(fields.getFirst(), name, false);
         generated.put(
                 source(layout.repositoryPackage(), name + "Repository.java"),
@@ -139,7 +145,7 @@ public final class SpringComponentGenerator {
     }
 
     private Map<Path, String> portBasedEntity(
-            Layout layout, String name, List<FieldDefinition> fields) {
+            Layout layout, String name, List<FieldDefinition> fields, DatabaseProfile database) {
         var generated = new LinkedHashMap<Path, String>();
         addEnums(generated, layout.domainPackage(), name, fields);
         generated.put(
@@ -187,7 +193,12 @@ public final class SpringComponentGenerator {
         String persistencePackage = layout.persistencePackage();
         generated.put(
                 source(persistencePackage, name + "JpaEntity.java"),
-                jpaEntity(persistencePackage, layout.domainPackage(), name + "JpaEntity", fields));
+                jpaEntity(
+                        persistencePackage,
+                        layout.domainPackage(),
+                        name + "JpaEntity",
+                        fields,
+                        database));
         generated.put(
                 source(persistencePackage, name + "JpaRepository.java"),
                 """
@@ -274,6 +285,308 @@ public final class SpringComponentGenerator {
         return Map.copyOf(generated);
     }
 
+    private Map<Path, String> layeredMongoEntity(
+            Layout layout, String name, List<FieldDefinition> fields) {
+        var generated = new LinkedHashMap<Path, String>();
+        addEnums(generated, layout.domainPackage(), name, fields);
+        generated.put(
+                source(layout.domainPackage(), name + ".java"),
+                mongoDocument(layout.domainPackage(), layout.domainPackage(), name, fields));
+        String idType = javaType(fields.getFirst(), name, false);
+        generated.put(
+                source(layout.repositoryPackage(), name + "Repository.java"),
+                """
+                package %s;
+
+                import %s.%s;
+                import %s;
+                import org.springframework.data.mongodb.repository.MongoRepository;
+
+                public interface %sRepository extends MongoRepository<%s, %s> {}
+                """
+                        .formatted(
+                                layout.repositoryPackage(),
+                                layout.domainPackage(),
+                                name,
+                                importFor(idType),
+                                name,
+                                name,
+                                simpleType(idType)));
+        generated.put(
+                testSource(layout.domainPackage(), name + "Test.java"),
+                entityTypeTest(layout.domainPackage(), name));
+        return Map.copyOf(generated);
+    }
+
+    private Map<Path, String> portBasedMongoEntity(
+            Layout layout, String name, List<FieldDefinition> fields) {
+        var generated = new LinkedHashMap<Path, String>();
+        addEnums(generated, layout.domainPackage(), name, fields);
+        generated.put(
+                source(layout.domainPackage(), name + "Id.java"),
+                """
+                package %s;
+
+                import java.util.Objects;
+                import java.util.UUID;
+
+                public record %sId(UUID value) {
+                    public %sId { Objects.requireNonNull(value, "value"); }
+                    public static %sId random() { return new %sId(UUID.randomUUID()); }
+                }
+                """
+                        .formatted(layout.domainPackage(), name, name, name, name));
+        generated.put(
+                source(layout.domainPackage(), name + ".java"),
+                domainRecord(layout.domainPackage(), name, fields));
+        generated.put(
+                source(layout.repositoryPackage(), name + "Repository.java"),
+                """
+                package %s;
+
+                import %s.%s;
+                import %s.%sId;
+                import java.util.Optional;
+
+                public interface %sRepository {
+                    %s save(%s aggregate);
+                    Optional<%s> findById(%sId id);
+                }
+                """
+                        .formatted(
+                                layout.repositoryPackage(),
+                                layout.domainPackage(),
+                                name,
+                                layout.domainPackage(),
+                                name,
+                                name,
+                                name,
+                                name,
+                                name,
+                                name));
+        String persistencePackage = layout.persistencePackage();
+        generated.put(
+                source(persistencePackage, name + "MongoDocument.java"),
+                mongoDocument(
+                        persistencePackage,
+                        layout.domainPackage(),
+                        name + "MongoDocument",
+                        fields));
+        generated.put(
+                source(persistencePackage, name + "MongoRepository.java"),
+                """
+                package %s;
+
+                import java.util.UUID;
+                import org.springframework.data.mongodb.repository.MongoRepository;
+
+                interface %sMongoRepository extends MongoRepository<%sMongoDocument, UUID> {}
+                """
+                        .formatted(persistencePackage, name, name));
+        generated.put(
+                source(persistencePackage, name + "PersistenceMapper.java"),
+                mongoPersistenceMapper(layout, name, fields));
+        generated.put(
+                source(persistencePackage, name + "PersistenceAdapter.java"),
+                """
+                package %s;
+
+                import %s.%s;
+                import %s.%sId;
+                import %s.%sRepository;
+                import java.util.Optional;
+                import org.springframework.stereotype.Repository;
+
+                @Repository
+                public class %sPersistenceAdapter implements %sRepository {
+                    private final %sMongoRepository repository;
+                    private final %sPersistenceMapper mapper;
+
+                    public %sPersistenceAdapter(%sMongoRepository repository, %sPersistenceMapper mapper) {
+                        this.repository = repository;
+                        this.mapper = mapper;
+                    }
+
+                    @Override
+                    public %s save(%s aggregate) {
+                        return mapper.toDomain(repository.save(mapper.toDocument(aggregate)));
+                    }
+
+                    @Override
+                    public Optional<%s> findById(%sId id) {
+                        return repository.findById(id.value()).map(mapper::toDomain);
+                    }
+                }
+                """
+                        .formatted(
+                                persistencePackage,
+                                layout.domainPackage(),
+                                name,
+                                layout.domainPackage(),
+                                name,
+                                layout.repositoryPackage(),
+                                name,
+                                name,
+                                name,
+                                name,
+                                name,
+                                name,
+                                name,
+                                name,
+                                name,
+                                name,
+                                name,
+                                name));
+        generated.put(
+                testSource(layout.domainPackage(), name + "IdTest.java"),
+                """
+                package %s;
+
+                import static org.junit.jupiter.api.Assertions.assertEquals;
+                import java.util.UUID;
+                import org.junit.jupiter.api.Test;
+
+                class %sIdTest {
+                    @Test void retainsItsValue() {
+                        UUID value = UUID.randomUUID();
+                        assertEquals(value, new %sId(value).value());
+                    }
+                }
+                """
+                        .formatted(layout.domainPackage(), name, name));
+        return Map.copyOf(generated);
+    }
+
+    private String mongoDocument(
+            String packageName, String enumPackage, String name, List<FieldDefinition> fields) {
+        String collection = snake(name.replace("MongoDocument", ""));
+        String entityName = name.replace("MongoDocument", "");
+        String enumImports =
+                fields.stream()
+                        .filter(field -> field.type() == FieldType.ENUM)
+                        .map(
+                                field ->
+                                        "import "
+                                                + enumPackage
+                                                + "."
+                                                + entityName
+                                                + capitalize(field.name())
+                                                + ";")
+                        .collect(java.util.stream.Collectors.joining("\n"));
+        String imports =
+                requiredImports(fields, true, "")
+                        + (enumImports.isBlank() ? "" : enumImports + "\n");
+        var declarations = new StringBuilder();
+        var parameters = new ArrayList<String>();
+        var assignments = new StringBuilder();
+        var getters = new StringBuilder();
+        for (int index = 0; index < fields.size(); index++) {
+            FieldDefinition field = fields.get(index);
+            String type = javaType(field, entityName, true);
+            if (index == 0) declarations.append("    @Id\n");
+            declarations
+                    .append("    @Field(\"")
+                    .append(snake(field.name()))
+                    .append("\")\n    private ")
+                    .append(type)
+                    .append(' ')
+                    .append(field.name())
+                    .append(";\n\n");
+            parameters.add(type + " " + field.name());
+            assignments
+                    .append("        this.")
+                    .append(field.name())
+                    .append(" = ")
+                    .append(field.name())
+                    .append(";\n");
+            getters.append("    public ")
+                    .append(type)
+                    .append(" get")
+                    .append(capitalize(field.name()))
+                    .append("() { return ")
+                    .append(field.name())
+                    .append("; }\n");
+        }
+        return """
+                package %s;
+
+                %s
+                import org.springframework.data.annotation.Id;
+                import org.springframework.data.mongodb.core.mapping.Document;
+                import org.springframework.data.mongodb.core.mapping.Field;
+
+                @Document("%s")
+                public class %s {
+                %s    protected %s() {}
+
+                    public %s(%s) {
+                %s    }
+
+                %s}
+                """
+                .formatted(
+                        packageName,
+                        imports,
+                        collection,
+                        name,
+                        declarations,
+                        name,
+                        name,
+                        String.join(", ", parameters),
+                        assignments,
+                        getters);
+    }
+
+    private String mongoPersistenceMapper(
+            Layout layout, String name, List<FieldDefinition> fields) {
+        var toDomain = new ArrayList<String>();
+        toDomain.add(
+                "new " + name + "Id(document.get" + capitalize(fields.getFirst().name()) + "())");
+        fields.stream()
+                .skip(1)
+                .forEach(field -> toDomain.add("document.get" + capitalize(field.name()) + "()"));
+        var toDocument = new ArrayList<String>();
+        toDocument.add("aggregate.id().value()");
+        fields.stream()
+                .skip(1)
+                .forEach(field -> toDocument.add("aggregate." + field.name() + "()"));
+        return """
+                package %s;
+
+                import %s.%s;
+                import %s.%sId;
+                import org.springframework.stereotype.Component;
+
+                @Component
+                class %sPersistenceMapper {
+                    %s toDomain(%sMongoDocument document) {
+                        return new %s(
+                                %s);
+                    }
+
+                    %sMongoDocument toDocument(%s aggregate) {
+                        return new %sMongoDocument(
+                                %s);
+                    }
+                }
+                """
+                .formatted(
+                        layout.persistencePackage(),
+                        layout.domainPackage(),
+                        name,
+                        layout.domainPackage(),
+                        name,
+                        name,
+                        name,
+                        name,
+                        name,
+                        String.join(",\n                ", toDomain),
+                        name,
+                        name,
+                        name,
+                        String.join(",\n                ", toDocument));
+    }
+
     private String domainRecord(String packageName, String name, List<FieldDefinition> fields) {
         var components = new ArrayList<String>();
         components.add(name + "Id id");
@@ -330,7 +643,11 @@ public final class SpringComponentGenerator {
     }
 
     private String jpaEntity(
-            String packageName, String enumPackage, String name, List<FieldDefinition> fields) {
+            String packageName,
+            String enumPackage,
+            String name,
+            List<FieldDefinition> fields,
+            DatabaseProfile database) {
         String table = snake(name.replace("JpaEntity", ""));
         String entityName = name.replace("JpaEntity", "");
         String enumImports =
@@ -383,8 +700,11 @@ public final class SpringComponentGenerator {
             } else if (field.options().containsKey("length")) {
                 declarations.append(", length = ").append(field.options().get("length"));
             }
-            if (field.type() == FieldType.JSON)
-                declarations.append(", columnDefinition = \"jsonb\"");
+            if (field.type() == FieldType.JSON || field.type() == FieldType.LIST)
+                declarations
+                        .append(", columnDefinition = \"")
+                        .append(database.jsonType())
+                        .append("\"");
             declarations
                     .append(")\n    private ")
                     .append(simpleType(type))
@@ -518,9 +838,9 @@ public final class SpringComponentGenerator {
             if (field.unique()) definition += " UNIQUE";
             columns.add(definition);
         }
-        columns.add("  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP");
-        columns.add("  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP");
-        columns.add("  version BIGINT NOT NULL DEFAULT 0");
+        columns.add("  created_at ${timestampType} DEFAULT ${currentTimestamp} NOT NULL");
+        columns.add("  updated_at ${timestampType} DEFAULT ${currentTimestamp} NOT NULL");
+        columns.add("  version ${bigintType} DEFAULT 0 NOT NULL");
         String version =
                 String.valueOf(
                         10000 + Math.floorMod(name.toLowerCase(Locale.ROOT).hashCode(), 89999));
@@ -871,13 +1191,19 @@ public final class SpringComponentGenerator {
                         .formatted(packageName, name));
     }
 
-    private Map<Path, String> migration(String name, List<FieldDefinition> fields) {
+    private Map<Path, String> migration(
+            ProjectConfiguration configuration, String name, List<FieldDefinition> fields) {
+        if (DatabaseProfile.from(configuration.features().database()).mongodb()) {
+            throw new IllegalArgumentException(
+                    "migration is unavailable for MongoDB projects because migrations are disabled");
+        }
         String version =
                 String.valueOf(
                         10000 + Math.floorMod(name.toLowerCase(Locale.ROOT).hashCode(), 89999));
         String columns =
                 fields.isEmpty()
-                        ? "  id UUID PRIMARY KEY,\n  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP"
+                        ? "  id ${uuidType} PRIMARY KEY,\n"
+                                + "  created_at ${timestampType} DEFAULT ${currentTimestamp} NOT NULL"
                         : fields.stream()
                                 .map(
                                         field ->
@@ -1321,23 +1647,23 @@ public final class SpringComponentGenerator {
                                     .getOrDefault(
                                             "max", field.options().getOrDefault("length", "255"))
                             + ")";
-            case TEXT -> "TEXT";
-            case INTEGER -> "INTEGER";
-            case LONG -> "BIGINT";
+            case TEXT -> "${textType}";
+            case INTEGER -> "${integerType}";
+            case LONG -> "${bigintType}";
             case DECIMAL ->
                     "NUMERIC("
                             + field.options().get("precision")
                             + ","
                             + field.options().get("scale")
                             + ")";
-            case BOOLEAN -> "BOOLEAN";
-            case UUID, REFERENCE -> "UUID";
+            case BOOLEAN -> "${booleanType}";
+            case UUID, REFERENCE -> "${uuidType}";
             case DATE -> "DATE";
-            case INSTANT -> "TIMESTAMPTZ";
+            case INSTANT -> "${timestampType}";
             case ENUM -> "VARCHAR(64)";
-            case JSON -> "JSONB";
-            case BINARY -> "BYTEA";
-            case LIST -> "JSONB";
+            case JSON -> "${jsonType}";
+            case BINARY -> "${binaryType}";
+            case LIST -> "${jsonType}";
         };
     }
 

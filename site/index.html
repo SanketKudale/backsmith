@@ -36,6 +36,7 @@
         <a class="brand" href="#top"><span class="brand-mark">{●}</span> Backsmith</a>
         <div class="nav-links">
           <a href="#features">Features</a>
+          <a href="#databases">Databases</a>
           <a href="#install">Install</a>
           <a href="#architecture">Architecture</a>
           <a href="https://github.com/SanketKudale/backsmith">GitHub</a>
@@ -77,9 +78,25 @@
           <article><span>01</span><h3>Two-phase generation</h3><p>Backsmith plans, hashes, sorts, and validates every operation before applying it.</p></article>
           <article><span>02</span><h3>Conflict-safe by default</h3><p>Different existing files become explicit conflicts. Nothing is silently overwritten.</p></article>
           <article><span>03</span><h3>Architecture-aware</h3><p>Generate layered, hexagonal, modular-monolith, clean, onion, CQRS, or microservice Spring Boot applications.</p></article>
-          <article><span>04</span><h3>Production foundations</h3><p>PostgreSQL, Flyway, JPA, OpenAPI, Actuator, Docker Compose, and CI are wired into generated projects.</p></article>
+          <article><span>04</span><h3>Seven databases</h3><p>Choose PostgreSQL, MySQL, MariaDB, SQL Server, Oracle, H2, or MongoDB with matching persistence, configuration, containers, and tests.</p></article>
           <article><span>05</span><h3>Portable automation</h3><p>Machine-readable JSON, stable exit codes, deterministic output, and cross-platform paths.</p></article>
           <article><span>06</span><h3>Open extension model</h3><p>Framework adapters isolate generation logic so future stacks can plug in without weakening safety.</p></article>
+        </div>
+      </section>
+
+      <section id="databases" class="section">
+        <div class="section-heading">
+          <p class="eyebrow">USE YOUR DATABASE</p>
+          <h2>One CLI, seven database targets.</h2>
+          <p>Backsmith generates native dependencies and configuration for each engine. Relational projects use JPA and Flyway; MongoDB projects use Spring Data MongoDB. Integration tests run against the selected engine, and H2 is used only when you choose it.</p>
+        </div>
+        <div class="grid features">
+          <article><h3>PostgreSQL</h3><p>UUID, JSONB, timestamp-with-time-zone, Flyway, and PostgreSQL Testcontainers.</p></article>
+          <article><h3>MySQL</h3><p>MySQL Connector/J, native JSON and binary UUID storage, Flyway, and MySQL Testcontainers.</p></article>
+          <article><h3>MariaDB</h3><p>MariaDB JDBC, native JSON-compatible storage, Flyway, and MariaDB Testcontainers.</p></article>
+          <article><h3>SQL Server</h3><p>Microsoft JDBC, uniqueidentifier, datetimeoffset, Flyway, and licensed SQL Server containers.</p></article>
+          <article><h3>Oracle</h3><p>Oracle JDBC, RAW UUIDs, timestamp-with-time-zone, Flyway, and Oracle Free containers.</p></article>
+          <article><h3>H2 and MongoDB</h3><p>Explicit H2 projects for local use, or document-native MongoDB projects with repositories and container tests.</p></article>
         </div>
       </section>
 

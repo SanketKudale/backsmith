@@ -55,7 +55,9 @@ public final class ClasspathTemplateCatalog implements TemplateCatalog {
         try (InputStream stream = loader.getResourceAsStream(resource)) {
             if (stream == null)
                 throw new IllegalArgumentException("template not found: " + relativePath);
-            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8)
+                    .replace("\r\n", "\n")
+                    .replace('\r', '\n');
         } catch (IOException exception) {
             throw new IllegalStateException("failed to load template: " + relativePath, exception);
         }
