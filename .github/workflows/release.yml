@@ -46,7 +46,7 @@ jobs:
             exit 1
           }
           chmod +x mvnw
-          project_version=$(./mvnw -q help:evaluate -Dexpression=project.version -DforceStdout)
+          project_version=$(./mvnw -q help:evaluate -Dexpression=project.version -DforceStdout | tail -n 1)
           if [[ "v${project_version}" != "$RELEASE_TAG" ]]; then
             echo "::error::Tag $RELEASE_TAG does not match Maven project version $project_version."
             exit 1
