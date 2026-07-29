@@ -16,6 +16,7 @@ record DatabaseProfile(
         String binaryType,
         String booleanType,
         String trueLiteral,
+        String currentTimestamp,
         String testJdbcUrl,
         String testUsername,
         String testPassword) {
@@ -40,6 +41,7 @@ record DatabaseProfile(
                             "BYTEA",
                             "BOOLEAN",
                             "TRUE",
+                            "CURRENT_TIMESTAMP",
                             "jdbc:tc:postgresql:17-alpine:///{{artifactId}}",
                             "test",
                             "test");
@@ -57,6 +59,7 @@ record DatabaseProfile(
                             "LONGBLOB",
                             "BOOLEAN",
                             "TRUE",
+                            "CURRENT_TIMESTAMP(6)",
                             "jdbc:tc:mysql:8.4.6:///{{artifactId}}",
                             "test",
                             "test");
@@ -67,13 +70,14 @@ record DatabaseProfile(
                             "jdbc:mariadb://localhost:3306/{{artifactId}}",
                             "backsmith",
                             "backsmith",
-                            "BINARY(16)",
+                            "UUID",
                             "DATETIME(6)",
                             "JSON",
                             "LONGTEXT",
                             "LONGBLOB",
                             "BOOLEAN",
                             "TRUE",
+                            "CURRENT_TIMESTAMP(6)",
                             "jdbc:tc:mariadb:11.8.3:///{{artifactId}}",
                             "test",
                             "test");
@@ -91,6 +95,7 @@ record DatabaseProfile(
                             "VARBINARY(MAX)",
                             "BIT",
                             "1",
+                            "SYSDATETIMEOFFSET()",
                             "jdbc:tc:sqlserver:2022-CU20-ubuntu-22.04:///{{artifactId}}",
                             "sa",
                             "A_Str0ng_Required_Password");
@@ -108,6 +113,7 @@ record DatabaseProfile(
                             "BLOB",
                             "NUMBER(1)",
                             "1",
+                            "CURRENT_TIMESTAMP",
                             "jdbc:tc:oracle:23-slim-faststart:///{{artifactId}}",
                             "test",
                             "test");
@@ -125,6 +131,7 @@ record DatabaseProfile(
                             "BLOB",
                             "BOOLEAN",
                             "TRUE",
+                            "CURRENT_TIMESTAMP",
                             "jdbc:h2:mem:{{artifactId}};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
                             "sa",
                             "");
@@ -133,6 +140,7 @@ record DatabaseProfile(
                             id,
                             false,
                             "mongodb://localhost:27017/{{artifactId}}",
+                            "",
                             "",
                             "",
                             "",

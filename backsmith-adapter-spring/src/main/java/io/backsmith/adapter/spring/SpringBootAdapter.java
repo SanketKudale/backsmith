@@ -96,6 +96,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
         values.put("binaryType", database.binaryType());
         values.put("booleanType", database.booleanType());
         values.put("trueLiteral", database.trueLiteral());
+        values.put("currentTimestamp", database.currentTimestamp());
         values.put("testJdbcUrl", projectValue(database.testJdbcUrl(), project.artifactId()));
         values.put("testDatabaseUsername", database.testUsername());
         values.put("testDatabasePassword", database.testPassword());
@@ -910,6 +911,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                   binaryType: "{{binaryType}}"
                   booleanType: "{{booleanType}}"
                   trueLiteral: "{{trueLiteral}}"
+                  currentTimestamp: "{{currentTimestamp}}"
               {{/relational}}
               {{#mongodb}}
               data:
@@ -1009,7 +1011,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
             CREATE TABLE greeting (
               id ${uuidType} PRIMARY KEY,
               message VARCHAR(255) NOT NULL,
-              created_at ${timestampType} NOT NULL DEFAULT CURRENT_TIMESTAMP
+              created_at ${timestampType} DEFAULT ${currentTimestamp} NOT NULL
             );
             {{/starterSample}}
             {{^starterSample}}
@@ -1685,7 +1687,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
               created_at ${timestampType} NOT NULL,
               completed_at ${timestampType},
               expires_at ${timestampType} NOT NULL,
-              version BIGINT NOT NULL DEFAULT 0,
+              version BIGINT DEFAULT 0 NOT NULL,
               CONSTRAINT uq_idempotency_tenant_key UNIQUE (tenant_id, key_value)
             );
             CREATE INDEX idx_idempotency_expiry ON idempotency_record(expires_at);
@@ -2240,10 +2242,10 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
               id ${uuidType} PRIMARY KEY,
               email VARCHAR(320) NOT NULL UNIQUE,
               password_hash VARCHAR(255) NOT NULL,
-              enabled ${booleanType} NOT NULL DEFAULT ${trueLiteral},
-              created_at ${timestampType} NOT NULL DEFAULT CURRENT_TIMESTAMP,
-              updated_at ${timestampType} NOT NULL DEFAULT CURRENT_TIMESTAMP,
-              version BIGINT NOT NULL DEFAULT 0
+              enabled ${booleanType} DEFAULT ${trueLiteral} NOT NULL,
+              created_at ${timestampType} DEFAULT ${currentTimestamp} NOT NULL,
+              updated_at ${timestampType} DEFAULT ${currentTimestamp} NOT NULL,
+              version BIGINT DEFAULT 0 NOT NULL
             );
             CREATE TABLE account_role (
               account_id ${uuidType} NOT NULL REFERENCES account(id) ON DELETE CASCADE,
@@ -2264,7 +2266,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
               expires_at ${timestampType} NOT NULL,
               revoked_at ${timestampType},
               replaced_by ${uuidType},
-              created_at ${timestampType} NOT NULL DEFAULT CURRENT_TIMESTAMP
+              created_at ${timestampType} DEFAULT ${currentTimestamp} NOT NULL
             );
             CREATE INDEX idx_refresh_token_account ON refresh_token(account_id);
             """;
@@ -2455,7 +2457,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
               email VARCHAR(320) NOT NULL{{^multiTenancy}} UNIQUE{{/multiTenancy}},
               created_at ${timestampType} NOT NULL,
               {{#multiTenancy}}tenant_id VARCHAR(64) NOT NULL,{{/multiTenancy}}
-              version BIGINT NOT NULL DEFAULT 0
+              version BIGINT DEFAULT 0 NOT NULL
             );
             CREATE INDEX idx_customer_name ON customer(name);
             {{#multiTenancy}}
@@ -2742,7 +2744,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
               idempotency_key VARCHAR(128) NOT NULL{{^multiTenancy}} UNIQUE{{/multiTenancy}},
               created_at ${timestampType} NOT NULL,
               {{#multiTenancy}}tenant_id VARCHAR(64) NOT NULL,{{/multiTenancy}}
-              version BIGINT NOT NULL DEFAULT 0
+              version BIGINT DEFAULT 0 NOT NULL
             );
             CREATE INDEX idx_payment_status ON payment(status);
             {{#multiTenancy}}
@@ -3068,7 +3070,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
               event_type VARCHAR(255) NOT NULL,
               payload ${jsonType} NOT NULL,
               status VARCHAR(32) NOT NULL,
-              attempts INTEGER NOT NULL DEFAULT 0,
+              attempts INTEGER DEFAULT 0 NOT NULL,
               occurred_at ${timestampType} NOT NULL,
               next_attempt_at ${timestampType} NOT NULL,
               published_at ${timestampType},

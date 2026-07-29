@@ -838,9 +838,9 @@ public final class SpringComponentGenerator {
             if (field.unique()) definition += " UNIQUE";
             columns.add(definition);
         }
-        columns.add("  created_at ${timestampType} NOT NULL DEFAULT CURRENT_TIMESTAMP");
-        columns.add("  updated_at ${timestampType} NOT NULL DEFAULT CURRENT_TIMESTAMP");
-        columns.add("  version BIGINT NOT NULL DEFAULT 0");
+        columns.add("  created_at ${timestampType} DEFAULT ${currentTimestamp} NOT NULL");
+        columns.add("  updated_at ${timestampType} DEFAULT ${currentTimestamp} NOT NULL");
+        columns.add("  version BIGINT DEFAULT 0 NOT NULL");
         String version =
                 String.valueOf(
                         10000 + Math.floorMod(name.toLowerCase(Locale.ROOT).hashCode(), 89999));
@@ -1203,7 +1203,7 @@ public final class SpringComponentGenerator {
         String columns =
                 fields.isEmpty()
                         ? "  id ${uuidType} PRIMARY KEY,\n"
-                                + "  created_at ${timestampType} NOT NULL DEFAULT CURRENT_TIMESTAMP"
+                                + "  created_at ${timestampType} DEFAULT ${currentTimestamp} NOT NULL"
                         : fields.stream()
                                 .map(
                                         field ->
