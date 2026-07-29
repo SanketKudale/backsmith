@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/SanketKudale/backsmith/security/advisories/new
+    about: Report vulnerabilities privately through GitHub Security Advisories.
+  - name: Usage and architecture discussion
+    url: https://github.com/SanketKudale/backsmith/discussions
+    about: Ask questions and discuss design ideas.

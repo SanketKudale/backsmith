@@ -32,6 +32,7 @@ class DistributionArchiveTest {
             assertNotNull(zip.getEntry(root + "/bin/backsmith.cmd"));
             assertNotNull(zip.getEntry(root + "/README.md"));
             assertNotNull(zip.getEntry(root + "/LICENSE"));
+            assertNotNull(zip.getEntry(root + "/NOTICE"));
 
             var unixLauncher = zip.getEntry(root + "/bin/backsmith");
             assertNotNull(unixLauncher);
