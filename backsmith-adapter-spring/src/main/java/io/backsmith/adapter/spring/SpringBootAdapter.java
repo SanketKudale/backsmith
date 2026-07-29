@@ -1503,7 +1503,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
               id UUID PRIMARY KEY,
               tenant_id VARCHAR(64) NOT NULL,
               key_value VARCHAR(128) NOT NULL,
-              request_hash CHAR(64) NOT NULL,
+              request_hash VARCHAR(64) NOT NULL,
               state VARCHAR(16) NOT NULL,
               status_code INTEGER,
               response_body TEXT,
