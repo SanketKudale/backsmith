@@ -1,0 +1,138 @@
+name: generated projects
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  security-mode:
+    strategy:
+      fail-fast: false
+      matrix:
+        security: [none, basic, session, jwt, oauth2, oidc]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Build Backsmith
+        run: |
+          chmod +x mvnw
+          ./mvnw -B -ntp -DskipTests package
+      - name: Verify security mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/security-${{ matrix.security }}"
+          java -jar backsmith-cli/target/backsmith.jar create "security-${{ matrix.security }}" \
+            --project "$output" \
+            --security "${{ matrix.security }}" \
+            --no-tests \
+            --yes \
+            --quiet
+          project="$output/security-${{ matrix.security }}"
+          chmod +x "$project/mvnw"
+          (
+            cd "$project"
+            ./mvnw -B -ntp verify
+          )
+
+  architecture:
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture:
+          - layered
+          - hexagonal
+          - modular-monolith
+          - clean
+          - onion
+          - cqrs
+          - microservice
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Build Backsmith
+        run: |
+          chmod +x mvnw
+          ./mvnw -B -ntp -DskipTests package
+      - name: Generate and verify architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/generated-${{ matrix.architecture }}"
+          java -jar backsmith-cli/target/backsmith.jar create "sample-${{ matrix.architecture }}" \
+            --project "$output" \
+            --architecture "${{ matrix.architecture }}" \
+            --yes \
+            --quiet
+          project="$output/sample-${{ matrix.architecture }}"
+          chmod +x "$project/mvnw"
+          (
+            cd "$project"
+            ./mvnw -B -ntp verify
+            docker compose config --quiet
+          )
+
+  production-features:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Generate the full production stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x mvnw
+          ./mvnw -B -ntp -DskipTests package
+          output="$RUNNER_TEMP/full"
+          java -jar backsmith-cli/target/backsmith.jar create production-service \
+            --project "$output" \
+            --architecture cqrs \
+            --messaging kafka \
+            --cache redis \
+            --observability full \
+            --starter-auth \
+            --starter-module customer \
+            --starter-module payment \
+            --multi-tenancy shared-schema \
+            --kubernetes \
+            --circuit-breaker \
+            --retry \
+            --timeout \
+            --rate-limiter \
+            --bulkhead \
+            --yes \
+            --quiet
+          project="$output/production-service"
+          java -jar backsmith-cli/target/backsmith.jar integration Billing \
+            --project "$project" --module payment --quiet
+          java -jar backsmith-cli/target/backsmith.jar entity Invoice \
+            --project "$project" --module payment \
+            --field externalReference:string:required:unique \
+            --field amount:decimal:required:precision=19:scale=4 \
+            --quiet
+          java -jar backsmith-cli/target/backsmith.jar validate \
+            --project "$project" --json
+          chmod +x "$project/mvnw"
+          (
+            cd "$project"
+            ./mvnw -B -ntp verify
+            docker compose config --quiet
+          )

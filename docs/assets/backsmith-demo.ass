@@ -15,7 +15,7 @@ Style: Accent,Consolas,20,&H005ED7FF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-Dialogue: 0,0:00:00.00,0:00:14.00,Header,,0,0,0,,BACKSMITH 0.1.2  /  deterministic backend generation
+Dialogue: 0,0:00:00.00,0:00:14.00,Header,,0,0,0,,BACKSMITH 1.0.0  /  deterministic backend generation
 Dialogue: 0,0:00:00.50,0:00:03.50,Prompt,,0,0,0,,$ backsmith create payment-service --architecture hexagonal --dry-run --yes
 Dialogue: 0,0:00:01.50,0:00:03.50,Create,,0,0,55,,CREATE    pom.xml
 Dialogue: 0,0:00:01.75,0:00:03.50,Create,,0,0,85,,CREATE    backsmith.yaml

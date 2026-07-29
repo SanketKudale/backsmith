@@ -7,7 +7,10 @@ import java.util.List;
 public record GenerationPlan(Path target, List<PlannedFile> files) {
     public GenerationPlan {
         target = target.toAbsolutePath().normalize();
-        files = files.stream().sorted(Comparator.comparing(f -> f.relativePath().toString())).toList();
+        files =
+                files.stream()
+                        .sorted(Comparator.comparing(f -> f.relativePath().toString()))
+                        .toList();
     }
 
     public boolean hasConflicts() {

@@ -16,18 +16,26 @@ class DistributionArchiveTest {
         Path cliTarget = Path.of("..", "backsmith-cli", "target").toAbsolutePath().normalize();
         Path archive;
         try (var files = Files.list(cliTarget)) {
-            archive = files
-                    .filter(path -> path.getFileName().toString().matches("backsmith-.+-bin\\.zip"))
-                    .findFirst()
-                    .orElseThrow(() -> new AssertionError("Backsmith distribution ZIP was not built"));
+            archive =
+                    files.filter(
+                                    path ->
+                                            path.getFileName()
+                                                    .toString()
+                                                    .matches("backsmith-.+-bin\\.zip"))
+                            .findFirst()
+                            .orElseThrow(
+                                    () ->
+                                            new AssertionError(
+                                                    "Backsmith distribution ZIP was not built"));
         }
 
         try (var zip = new ZipFile(archive.toFile())) {
-            String root = zip.stream()
-                    .map(entry -> entry.getName().split("/", 2)[0])
-                    .filter(name -> name.startsWith("backsmith-"))
-                    .findFirst()
-                    .orElseThrow();
+            String root =
+                    zip.stream()
+                            .map(entry -> entry.getName().split("/", 2)[0])
+                            .filter(name -> name.startsWith("backsmith-"))
+                            .findFirst()
+                            .orElseThrow();
             assertNotNull(zip.getEntry(root + "/lib/backsmith.jar"));
             assertNotNull(zip.getEntry(root + "/bin/backsmith.cmd"));
             assertNotNull(zip.getEntry(root + "/README.md"));

@@ -20,7 +20,7 @@ Introducing Backsmith: a conflict-aware CLI for generating Spring Boot backends
 
 Backend generators are useful until they overwrite code, hide architecture decisions, or produce a project that cannot compile. I built Backsmith around a different contract: plan first, show every operation, reject conflicts by default, and only apply a validated deterministic plan.
 
-The first supported stack is Java 21, Spring Boot, Maven, PostgreSQL, Flyway, JPA, OpenAPI, Docker, and GitHub Actions. Backsmith currently generates layered and hexagonal starter applications and records generation decisions in `backsmith.yaml`.
+The supported stack is Java 21, Spring Boot 3.5, Maven, PostgreSQL, Flyway, JPA, OpenAPI, Docker, Kubernetes, and GitHub Actions. Backsmith 1.0 generates seven architecture layouts and records generation decisions in `backsmith.yaml`.
 
 Try a no-write preview:
 
@@ -28,7 +28,7 @@ Try a no-write preview:
 backsmith create payment-service --architecture hexagonal --dry-run --yes
 ```
 
-Backsmith is Apache-2.0 licensed and pre-1.0, so limitations are documented openly. Contributions and architecture feedback are welcome.
+Backsmith is Apache-2.0 licensed and free for everyone. Production boundaries and operator responsibilities are documented openly.
 
 - Website: https://sanketkudale.github.io/backsmith/
 - Source: https://github.com/SanketKudale/backsmith
@@ -44,7 +44,7 @@ Show HN: Backsmith – a deterministic, conflict-aware Spring Boot generator
 
 I built Backsmith because backend generators often treat the filesystem as disposable. Backsmith creates a complete in-memory plan, hashes existing and rendered content, reports CREATE/UPDATE/SKIP/CONFLICT operations, and refuses different existing files by default.
 
-The initial release supports Java 21 + Spring Boot with layered and hexagonal starters. It is pre-1.0 and Apache-2.0 licensed. I would especially value feedback on its adapter boundary and conflict model.
+Version 1.0 supports Java 21 + Spring Boot across layered, hexagonal, modular-monolith, clean, onion, CQRS, and microservice layouts. It is Apache-2.0 licensed; feedback on generated production patterns and the extension boundary is welcome.
 
 https://github.com/SanketKudale/backsmith
 
@@ -63,15 +63,15 @@ I built an open-source, conflict-aware Spring Boot backend generator
 
 ### Text
 
-Backsmith is a Java 21 CLI that plans generation before writing, supports dry-run and JSON output, and treats changed existing files as conflicts. The first working adapter generates layered and hexagonal Spring Boot starters with PostgreSQL, Flyway, JPA, OpenAPI, Docker, and CI.
+Backsmith is a Java 21 CLI that plans generation before writing, supports dry-run and JSON output, and treats user-edited generated files as conflicts. Its Spring adapter generates seven architectures with production data, security, messaging, observability, testing, Docker, Kubernetes, and CI options.
 
-It is intentionally pre-1.0, and the README distinguishes shipped functionality from the roadmap. I would appreciate feedback from people maintaining generated or scaffolded Spring applications.
+Version 1.0 is freely available under Apache-2.0, and the README distinguishes shipped functionality from explicit operational boundaries. Feedback from maintainers of production Spring applications is welcome.
 
 ## LinkedIn
 
 I have released Backsmith, a free and open-source Java 21 CLI for generating safer Spring Boot backend foundations.
 
-Its core rule is simple: plan every filesystem operation, show conflicts, and never silently overwrite user code. The first release supports layered and hexagonal starters with PostgreSQL, Flyway, JPA, OpenAPI, Docker, and GitHub Actions.
+Its core rule is simple: plan every filesystem operation, show conflicts, and never silently overwrite user code. Version 1.0 supports seven architecture layouts plus PostgreSQL, Flyway, JPA, OpenAPI, security, messaging, caching, observability, Docker, Kubernetes, and GitHub Actions.
 
 Try it, inspect the architecture, or contribute:
 https://github.com/SanketKudale/backsmith

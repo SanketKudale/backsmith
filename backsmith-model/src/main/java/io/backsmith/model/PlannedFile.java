@@ -8,5 +8,4 @@ public record PlannedFile(
         String content,
         String contentHash,
         String existingHash,
-        String reason) {
-}
+        String reason) {}

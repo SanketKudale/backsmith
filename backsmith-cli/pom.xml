@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0">
   <modelVersion>4.0.0</modelVersion>
-  <parent><groupId>io.backsmith</groupId><artifactId>backsmith-parent</artifactId><version>0.1.2</version></parent>
+  <parent><groupId>io.backsmith</groupId><artifactId>backsmith-parent</artifactId><version>1.0.0</version></parent>
   <artifactId>backsmith-cli</artifactId>
   <dependencies>
     <dependency><groupId>io.backsmith</groupId><artifactId>backsmith-adapter-spring</artifactId><version>${project.version}</version></dependency>

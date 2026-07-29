@@ -1,6 +1,6 @@
 # Implementation status
 
-This checklist is intentionally conservative. Checked items have automated or manual verification in 0.1.0.
+This checklist is intentionally conservative. Checked items are implemented in 1.0.0 and covered by source or generated-project verification.
 
 ## Phase 1 — foundation
 
@@ -12,8 +12,9 @@ This checklist is intentionally conservative. Checked items have automated or ma
 - [x] dry-run, conflicts, force, and skip-existing
 - [x] normalized safe paths and atomic writes
 - [x] basic ownership manifest
-- [ ] transactional multi-file rollback after an unexpected mid-apply failure
-- [ ] complete per-file ownership history and partial-file structured merges
+- [x] transactional multi-file rollback after an unexpected mid-apply failure
+- [x] per-file hashes, generator version, timestamps, history, modules, and API-contract metadata
+- [ ] structured partial-file merging; Backsmith intentionally owns complete generated files in 1.0
 
 ## Phase 2 — Spring creation
 
@@ -22,21 +23,23 @@ This checklist is intentionally conservative. Checked items have automated or ma
 - [x] hexagonal starter project
 - [x] PostgreSQL, JPA, Flyway, OpenAPI, Docker, health configuration
 - [x] generated Maven wrapper and CI workflow
-- [ ] complete production security and generated Testcontainers repository suite
+- [x] security modes, Problem Details, correlation IDs, audit hooks, and generated Testcontainers tests
 
 ## Phase 3 — component generators
 
 - [x] all command names exposed
 - [x] safe deterministic typed component scaffold
-- [ ] domain-aware entity, repository, use-case, controller, migration, and API generators
+- [x] domain-aware entity, repository, use-case, controller, migration, and OpenAPI generators
 
-## Later phases
+## Production features
 
-- [ ] authentication, authorization, idempotency, audit, and multi-tenancy
-- [ ] Kafka, transactional outbox, resilience, external integrations, and Redis
-- [ ] modular monolith, clean, onion, CQRS, and microservice implementations
-- [ ] full generated-project architecture matrix and golden tests
+- [x] persistent JWT authentication, roles, refresh rotation, idempotency, audit, and shared-schema tenancy
+- [x] Kafka, transactional outbox, idempotent consumers, resilience, external integrations, and Redis
+- [x] modular monolith, clean, onion, CQRS, and microservice layouts
+- [x] generated-project architecture matrix and full-feature build
 - [x] public GitHub Releases with cross-platform archives, launchers, checksums, and installers
-- [ ] Maven Central, Homebrew, Scoop, JBang catalog, and SDKMAN publication
+- [x] Homebrew, Scoop, and JBang publication automation
+- [x] Maven Central publication automation when signing and Central credentials are configured
+- [ ] SDKMAN vendor onboarding, which requires approval by the external SDKMAN service
 
-These unchecked items are roadmap work and are not claimed as supported.
+Unchecked items are explicit boundaries, not silently simulated features.

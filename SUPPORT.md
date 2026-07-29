@@ -1,6 +1,6 @@
 # Support
 
-Backsmith is a community-maintained pre-1.0 project.
+Backsmith 1.x is a community-maintained open-source project.
 
 - Ask usage and architecture questions in [GitHub Discussions](https://github.com/SanketKudale/backsmith/discussions).
 - Report reproducible bugs through the issue templates.
