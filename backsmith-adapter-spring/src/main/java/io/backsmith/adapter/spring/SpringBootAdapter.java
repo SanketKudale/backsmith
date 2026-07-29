@@ -2474,7 +2474,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                 private String payerReference;
                 private String payeeReference;
                 private BigDecimal amount;
-                private String currency;
+                @Column(length = 3) private String currency;
                 @Enumerated(EnumType.STRING) private PaymentStatus status;
                 private String idempotencyKey;
                 private Instant createdAt;
@@ -2562,7 +2562,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
               payer_reference VARCHAR(255) NOT NULL,
               payee_reference VARCHAR(255) NOT NULL,
               amount NUMERIC(19,4) NOT NULL CHECK (amount > 0),
-              currency CHAR(3) NOT NULL,
+              currency VARCHAR(3) NOT NULL,
               status VARCHAR(32) NOT NULL,
               idempotency_key VARCHAR(128) NOT NULL{{^multiTenancy}} UNIQUE{{/multiTenancy}},
               created_at TIMESTAMPTZ NOT NULL,
