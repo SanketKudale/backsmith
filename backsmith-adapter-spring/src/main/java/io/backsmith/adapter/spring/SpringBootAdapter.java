@@ -94,6 +94,8 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
         values.put("jsonType", database.jsonType());
         values.put("textType", database.textType());
         values.put("binaryType", database.binaryType());
+        values.put("integerType", database.integerType());
+        values.put("bigintType", database.bigintType());
         values.put("booleanType", database.booleanType());
         values.put("trueLiteral", database.trueLiteral());
         values.put("currentTimestamp", database.currentTimestamp());
@@ -909,6 +911,8 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                   jsonType: "{{jsonType}}"
                   textType: "{{textType}}"
                   binaryType: "{{binaryType}}"
+                  integerType: "{{integerType}}"
+                  bigintType: "{{bigintType}}"
                   booleanType: "{{booleanType}}"
                   trueLiteral: "{{trueLiteral}}"
                   currentTimestamp: "{{currentTimestamp}}"
@@ -1682,12 +1686,12 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
               key_value VARCHAR(128) NOT NULL,
               request_hash VARCHAR(64) NOT NULL,
               state VARCHAR(16) NOT NULL,
-              status_code INTEGER,
+              status_code ${integerType},
               response_body {{textType}},
               created_at ${timestampType} NOT NULL,
               completed_at ${timestampType},
               expires_at ${timestampType} NOT NULL,
-              version BIGINT DEFAULT 0 NOT NULL,
+              version ${bigintType} DEFAULT 0 NOT NULL,
               CONSTRAINT uq_idempotency_tenant_key UNIQUE (tenant_id, key_value)
             );
             CREATE INDEX idx_idempotency_expiry ON idempotency_record(expires_at);
@@ -2245,7 +2249,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
               enabled ${booleanType} DEFAULT ${trueLiteral} NOT NULL,
               created_at ${timestampType} DEFAULT ${currentTimestamp} NOT NULL,
               updated_at ${timestampType} DEFAULT ${currentTimestamp} NOT NULL,
-              version BIGINT DEFAULT 0 NOT NULL
+              version ${bigintType} DEFAULT 0 NOT NULL
             );
             CREATE TABLE account_role (
               account_id ${uuidType} NOT NULL REFERENCES account(id) ON DELETE CASCADE,
@@ -2457,7 +2461,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
               email VARCHAR(320) NOT NULL{{^multiTenancy}} UNIQUE{{/multiTenancy}},
               created_at ${timestampType} NOT NULL,
               {{#multiTenancy}}tenant_id VARCHAR(64) NOT NULL,{{/multiTenancy}}
-              version BIGINT DEFAULT 0 NOT NULL
+              version ${bigintType} DEFAULT 0 NOT NULL
             );
             CREATE INDEX idx_customer_name ON customer(name);
             {{#multiTenancy}}
@@ -2744,7 +2748,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
               idempotency_key VARCHAR(128) NOT NULL{{^multiTenancy}} UNIQUE{{/multiTenancy}},
               created_at ${timestampType} NOT NULL,
               {{#multiTenancy}}tenant_id VARCHAR(64) NOT NULL,{{/multiTenancy}}
-              version BIGINT DEFAULT 0 NOT NULL
+              version ${bigintType} DEFAULT 0 NOT NULL
             );
             CREATE INDEX idx_payment_status ON payment(status);
             {{#multiTenancy}}
@@ -3070,7 +3074,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
               event_type VARCHAR(255) NOT NULL,
               payload ${jsonType} NOT NULL,
               status VARCHAR(32) NOT NULL,
-              attempts INTEGER DEFAULT 0 NOT NULL,
+              attempts ${integerType} DEFAULT 0 NOT NULL,
               occurred_at ${timestampType} NOT NULL,
               next_attempt_at ${timestampType} NOT NULL,
               published_at ${timestampType},

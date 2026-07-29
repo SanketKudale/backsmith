@@ -840,7 +840,7 @@ public final class SpringComponentGenerator {
         }
         columns.add("  created_at ${timestampType} DEFAULT ${currentTimestamp} NOT NULL");
         columns.add("  updated_at ${timestampType} DEFAULT ${currentTimestamp} NOT NULL");
-        columns.add("  version BIGINT DEFAULT 0 NOT NULL");
+        columns.add("  version ${bigintType} DEFAULT 0 NOT NULL");
         String version =
                 String.valueOf(
                         10000 + Math.floorMod(name.toLowerCase(Locale.ROOT).hashCode(), 89999));
@@ -1648,8 +1648,8 @@ public final class SpringComponentGenerator {
                                             "max", field.options().getOrDefault("length", "255"))
                             + ")";
             case TEXT -> "${textType}";
-            case INTEGER -> "INTEGER";
-            case LONG -> "BIGINT";
+            case INTEGER -> "${integerType}";
+            case LONG -> "${bigintType}";
             case DECIMAL ->
                     "NUMERIC("
                             + field.options().get("precision")
