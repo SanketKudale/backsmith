@@ -7,8 +7,8 @@
 5. Create and push an annotated semantic-version tag matching the Maven version:
 
    ```shell
-   git tag -a v0.1.0 -m "Backsmith 0.1.0"
-   git push origin v0.1.0
+   git tag -a vX.Y.Z -m "Backsmith X.Y.Z"
+   git push origin vX.Y.Z
    ```
 
 6. Monitor the `release` GitHub Actions workflow.

@@ -421,7 +421,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
     private static final String MANIFEST = """
             {
               "schemaVersion": 1,
-              "backsmithVersion": "0.1.0",
+              "backsmithVersion": "0.1.1",
               "generator": "spring-project",
               "ownership": "fully-managed",
               "note": "Per-file hashes are populated by a future manifest upgrade."

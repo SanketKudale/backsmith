@@ -2,6 +2,13 @@
 
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/) and Semantic Versioning.
 
+## [0.1.1] - 2026-07-29
+
+### Fixed
+
+- Make the Windows installer tolerate Java's standard version output on stderr.
+- Make fresh-runner release version validation ignore Maven wrapper bootstrap output.
+
 ## [0.1.0] - 2026-07-29
 
 ### Added
