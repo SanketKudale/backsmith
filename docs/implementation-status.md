@@ -36,6 +36,7 @@ This checklist is intentionally conservative. Checked items have automated or ma
 - [ ] Kafka, transactional outbox, resilience, external integrations, and Redis
 - [ ] modular monolith, clean, onion, CQRS, and microservice implementations
 - [ ] full generated-project architecture matrix and golden tests
-- [ ] publishing and automated release workflow
+- [x] public GitHub Releases with cross-platform archives, launchers, checksums, and installers
+- [ ] Maven Central, Homebrew, Scoop, JBang catalog, and SDKMAN publication
 
 These unchecked items are roadmap work and are not claimed as supported.
