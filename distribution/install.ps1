@@ -7,8 +7,8 @@ $baseUrl = "https://github.com/$repository/releases/latest/download"
 $temporary = Join-Path ([System.IO.Path]::GetTempPath()) ("backsmith-" + [guid]::NewGuid())
 
 try {
-    $javaVersionOutput = (& java -version 2>&1 | Select-Object -First 1).ToString()
-    if ($LASTEXITCODE -ne 0 -or $javaVersionOutput -notmatch 'version "(\d+)') {
+    $javaVersionOutput = (& cmd /c "java -version 2>&1" | Select-Object -First 1).ToString()
+    if ($javaVersionOutput -notmatch 'version "(\d+)') {
         throw "Backsmith requires Java 21 or newer."
     }
     if ([int]$Matches[1] -lt 21) {

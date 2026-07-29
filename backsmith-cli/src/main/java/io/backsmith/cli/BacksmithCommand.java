@@ -7,7 +7,7 @@ import picocli.CommandLine.Option;
 @Command(
         name = "backsmith",
         mixinStandardHelpOptions = true,
-        version = "Backsmith 0.1.0",
+        version = "Backsmith 0.1.1",
         description = "Deterministic and safe backend architecture generator.",
         subcommands = {
                 CreateCommand.class,
@@ -23,7 +23,7 @@ public final class BacksmithCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        System.out.println("Backsmith 0.1.0");
+        System.out.println("Backsmith 0.1.1");
         System.out.println("Run 'backsmith --help' to see available commands.");
         return ExitCodes.SUCCESS;
     }
