@@ -2,6 +2,6 @@
 
 Report vulnerabilities privately through GitHub Security Advisories for this repository. Do not open public issues containing exploit details or secrets.
 
-Backsmith is pre-1.0. Generated projects are starting points, not compliance guarantees. Review dependencies, authentication, authorization, secret management, network policy, and deployment settings for your environment.
+Generated projects are production-oriented starting points, not compliance guarantees. Review dependencies, authentication, authorization, secret management, network policy, data retention, and deployment settings for your environment.
 
-Supported security fixes currently target the latest `0.1.x` release.
+Supported security fixes target the latest `1.x` release.

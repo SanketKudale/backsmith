@@ -2,6 +2,28 @@
 
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/) and Semantic Versioning.
 
+## [1.0.0] - 2026-07-29
+
+### Added
+
+- Production-safe transactional generation with rollback, ownership hashes, history, module metadata, and API-contract tracking.
+- Layered, hexagonal, modular-monolith, clean, onion, CQRS, and microservice project layouts.
+- Architecture-aware modules, entities, value objects, use cases, controllers, repositories, services, migrations, OpenAPI contracts, events, messaging, schedulers, integrations, Docker, CI, and documentation generators.
+- JWT authentication starter with persistent accounts, BCrypt, role and tenant claims, refresh rotation, logout, and current-account endpoints.
+- Customer and payment starter modules with tenant-scoped persistence, optimistic locking, money semantics, lifecycle validation, idempotency, audit, and outbox integration.
+- Kafka event envelopes, transactional outbox retries and dead state, idempotent consumers, Redis cache, Resilience4j policies, metrics, tracing, structured logs, and Kubernetes resources.
+- Generated Testcontainers and ArchUnit tests, code quality gates, dependency convergence, CodeQL, dependency review, and a seven-architecture CI matrix.
+- Optional signed Maven Central publication in the release workflow.
+
+### Changed
+
+- `diff`, `validate`, `doctor`, and `upgrade-config` now perform real project-aware diagnostics and migrations.
+- Spring generation targets Java 21 and Spring Boot 3.5.16.
+
+### Security
+
+- Added environment-only secrets, RFC-style security errors, JWT issuer/audience validation, tenant membership enforcement, correlation IDs, request hashing, and safe external-integration errors.
+
 ## [0.1.2] - 2026-07-29
 
 ### Added

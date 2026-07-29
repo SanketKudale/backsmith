@@ -9,5 +9,6 @@ public final class ExitCodes {
     public static final int GENERATION_FAILED = 5;
     public static final int VALIDATION_FAILED = 6;
     public static final int ENVIRONMENT_PROBLEM = 7;
+
     private ExitCodes() {}
 }

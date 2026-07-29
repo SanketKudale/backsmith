@@ -3,7 +3,7 @@
 1. Update the changelog and every Maven module version.
 2. Run `./mvnw clean verify`.
 3. Verify CLI help and doctor commands.
-4. Generate layered and hexagonal samples and compile them.
+4. Generate and verify all seven architecture samples and the full production feature stack.
 5. Create and push an annotated semantic-version tag matching the Maven version:
 
    ```shell
@@ -16,6 +16,6 @@
 
 The workflow runs `clean verify`, builds the shaded executable JAR, packages ZIP and TAR.GZ distributions, generates SHA-256 checksums, and creates the public GitHub Release. A manual workflow run against an existing tag safely replaces release assets, which supports repairing an interrupted publication.
 
-Release publication uses only the repository-scoped GitHub token. No personal access token or external paid service is required.
+When Maven Central username, password, private key, and passphrase secrets are configured, the same workflow signs sources, Javadocs, and binaries and publishes all library modules through the Central Publishing Portal. GitHub Release publication remains available without those optional credentials.
 
-Automated Maven Central, Homebrew, Scoop, and SDKMAN publication is not implemented in 0.1.0. Those channels require namespace ownership, supporting repositories, or vendor onboarding and should be added after the CLI surface stabilizes.
+Homebrew and Scoop repositories are synchronized by their release workflows, and the JBang catalog points to the public release asset. SDKMAN still requires external vendor onboarding; see `sdkman-onboarding.md`.

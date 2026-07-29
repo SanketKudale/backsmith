@@ -18,9 +18,9 @@
   <a href="docs/architecture.md">Architecture</a>
 </p>
 
-Backsmith is a Java 21 CLI for deterministic, conflict-aware backend project generation. Version 0.1.2 provides the product foundation and a functional Spring Boot adapter for layered and hexagonal starter applications.
+Backsmith 1.0 is a free, open-source Java 21 CLI for deterministic, conflict-aware production backend generation. It creates Spring Boot 3.5 applications with explicit architecture, security, data, messaging, observability, testing, and deployment choices.
 
-> Backsmith is pre-1.0. Generated code and security settings must be reviewed before production use.
+> Generated software is a reviewed starting point, not a compliance certificate. Validate secrets, threat models, retention, capacity, and deployment policy for your environment.
 
 ## See it in action
 
@@ -28,20 +28,24 @@ Backsmith is a Java 21 CLI for deterministic, conflict-aware backend project gen
   <img src="docs/assets/backsmith-demo.gif" alt="Backsmith CLI dry-run, creation, entity generation, and validation demo" width="960">
 </p>
 
-## What works in 0.1.x
+## Production capabilities
 
 - Maven multi-module CLI built with Picocli
 - immutable configuration persisted as `backsmith.yaml`
 - deterministic two-phase plan/apply generation
 - dry-run, conflict detection, explicit force, skip-existing, JSON, and quiet output
-- normalized paths, traversal protection, stable LF output, and atomic replacement
+- normalized paths, traversal protection, stable LF output, transactional writes, and rollback
+- versioned per-file ownership hashes, history, module metadata, and API-contract metadata
 - Spring Boot 3 / Java 21 starter generation
-- layered and hexagonal sample layouts
-- PostgreSQL, Flyway, JPA, Actuator, OpenAPI, Docker Compose, and GitHub Actions
-- project validation, environment diagnostics, config initialization, and component scaffolding
-- automated public releases with signed-by-GitHub SHA-256 asset digests
+- layered, hexagonal, modular-monolith, clean, onion, CQRS, and microservice layouts
+- PostgreSQL, Flyway, JPA, validation, Problem Details, idempotency, and audit logging
+- basic, session, JWT, OAuth2/OIDC resource-server security, plus a persistent JWT authentication starter
+- Kafka, transactional outbox, idempotent consumers, Redis, Resilience4j, metrics, tracing, and health probes
+- customer and payment starters, OpenAPI-driven APIs, and architecture-aware component scaffolding
+- Testcontainers, ArchUnit, Spotless, Checkstyle, JaCoCo, Docker Compose, Kubernetes, and pinned CI
+- automated releases, checksums, installers, Homebrew/Scoop/JBang metadata, and optional Maven Central publishing
 
-The full product direction is tracked in [implementation status](docs/implementation-status.md). Unfinished integrations and architectures are not presented as supported.
+The precise delivery and verification matrix is tracked in [implementation status](docs/implementation-status.md).
 
 ## Install
 
@@ -122,7 +126,7 @@ Generator commands report conflicts when a different destination file exists. Us
 
 The CLI exposes `create`, `init`, `doctor`, `validate`, `upgrade-config`, `diff`, `module`, `entity`, `value-object`, `usecase`, `controller`, `repository`, `service`, `api`, `api-dir`, `migration`, `event`, `consumer`, `producer`, `scheduler`, `integration`, `docker`, `ci`, and `docs`.
 
-In 0.1.x, component commands create deterministic typed scaffolds. Domain-specific entity fields, messaging, security, and distributed-system implementations remain roadmap items.
+Component commands create architecture-aware code, migrations, tests, integrations, messaging components, schedulers, CI, Docker, and documentation. Run `backsmith <command> --help` for generator-specific options.
 
 ## Repository layout
 
