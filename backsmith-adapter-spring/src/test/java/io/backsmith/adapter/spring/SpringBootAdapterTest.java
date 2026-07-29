@@ -11,6 +11,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class SpringBootAdapterTest {
     @Test
@@ -85,5 +86,103 @@ class SpringBootAdapterTest {
         assertTrue(persistence.contains("import java.util.UUID;"));
         assertFalse(persistence.contains("import java.time.Instant;"));
         assertFalse(persistence.contains("import java.time.LocalDate;"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {"postgresql", "mysql", "mariadb", "sqlserver", "oracle", "h2", "mongodb"})
+    void rendersEverySupportedDatabase(String database) {
+        ProjectConfiguration configuration = databaseConfiguration(database);
+        var generated = new SpringBootAdapter().createProject(configuration);
+        String pom = generated.get(Path.of("pom.xml"));
+        String application = generated.get(Path.of("src/main/resources/application.yml"));
+
+        assertTrue(
+                pom.contains(
+                        database.equals("mongodb") ? "data-mongodb" : databaseDriver(database)));
+        assertFalse(application.contains("{{artifactId}}"));
+        assertFalse(application.contains("&#"));
+        if (database.equals("mongodb")) {
+            assertTrue(application.contains("mongodb:"));
+            assertFalse(
+                    generated.keySet().stream()
+                            .anyMatch(
+                                    path ->
+                                            path.startsWith(
+                                                    Path.of("src/main/resources/db/migration"))));
+            assertTrue(
+                    generated.keySet().stream()
+                            .anyMatch(path -> path.endsWith("MongoDbIntegrationTest.java")));
+        } else {
+            assertTrue(application.contains("datasource:"));
+            assertTrue(
+                    generated.containsKey(
+                            Path.of("src/main/resources/db/migration/V1__initial_schema.sql")));
+        }
+    }
+
+    @Test
+    void mongodbEntityGeneratorUsesDocumentsInsteadOfJpa() {
+        var generated =
+                new SpringComponentGenerator()
+                        .generate(
+                                databaseConfiguration("mongodb"),
+                                "entity",
+                                "Invoice",
+                                "payment",
+                                List.of(
+                                        "reference:string:required",
+                                        "amount:decimal:required:precision=19:scale=4"),
+                                null);
+
+        assertTrue(generated.values().stream().anyMatch(source -> source.contains("@Document(")));
+        assertTrue(
+                generated.values().stream().anyMatch(source -> source.contains("MongoRepository")));
+        assertFalse(
+                generated.values().stream()
+                        .anyMatch(source -> source.contains("jakarta.persistence")));
+        assertFalse(
+                generated.keySet().stream()
+                        .anyMatch(
+                                path ->
+                                        path.startsWith(
+                                                Path.of("src/main/resources/db/migration"))));
+    }
+
+    private ProjectConfiguration databaseConfiguration(String database) {
+        ProjectConfiguration defaults =
+                ProjectConfiguration.defaults("database-matrix", Architecture.LAYERED);
+        boolean mongo = database.equals("mongodb");
+        var features =
+                new ProjectConfiguration.Features(
+                        database,
+                        mongo ? "mongodb" : "jpa",
+                        mongo ? "none" : "flyway",
+                        "none",
+                        "none",
+                        "none",
+                        "standard",
+                        true,
+                        true,
+                        true);
+        return new ProjectConfiguration(
+                defaults.schemaVersion(),
+                defaults.project(),
+                defaults.runtime(),
+                defaults.architecture(),
+                features,
+                defaults.modules());
+    }
+
+    private String databaseDriver(String database) {
+        return switch (database) {
+            case "postgresql" -> "org.postgresql";
+            case "mysql" -> "mysql-connector-j";
+            case "mariadb" -> "mariadb-java-client";
+            case "sqlserver" -> "mssql-jdbc";
+            case "oracle" -> "ojdbc11";
+            case "h2" -> "<artifactId>h2</artifactId>";
+            default -> throw new IllegalArgumentException(database);
+        };
     }
 }

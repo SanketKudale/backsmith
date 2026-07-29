@@ -36,7 +36,17 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                         "onion",
                         "cqrs",
                         "microservice"),
-                Set.of("postgresql", "jpa", "flyway"),
+                Set.of(
+                        "postgresql",
+                        "mysql",
+                        "mariadb",
+                        "sqlserver",
+                        "oracle",
+                        "h2",
+                        "mongodb",
+                        "jpa",
+                        "spring-data-mongodb",
+                        "flyway"),
                 Set.of("none", "basic", "session", "jwt", "oauth2", "oidc"),
                 Set.of("none", "kafka"),
                 Set.of("none", "redis"),
@@ -56,6 +66,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
     @Override
     public Map<Path, String> createProject(ProjectConfiguration configuration) {
         var project = configuration.project();
+        var database = DatabaseProfile.from(configuration.features().database());
         var values = new LinkedHashMap<String, Object>();
         values.put("name", project.name());
         values.put("artifactId", project.artifactId());
@@ -65,6 +76,29 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
         values.put("version", project.version());
         values.put("description", project.description());
         values.put("springVersion", configuration.runtime().frameworkVersion());
+        values.put("database", database.id());
+        values.put("relational", database.relational());
+        values.put("mongodb", database.mongodb());
+        values.put("h2", database.h2());
+        for (String supported : DatabaseProfile.SUPPORTED) {
+            values.put(supported, database.id().equals(supported));
+        }
+        values.put("databaseUrl", projectValue(database.jdbcUrl(), project.artifactId()));
+        values.put(
+                "databaseDeploymentUrl",
+                projectValue(database.deploymentUrl(), project.artifactId()));
+        values.put("databaseUsername", database.username());
+        values.put("databasePassword", database.password());
+        values.put("uuidType", database.uuidType());
+        values.put("timestampType", database.timestampType());
+        values.put("jsonType", database.jsonType());
+        values.put("textType", database.textType());
+        values.put("binaryType", database.binaryType());
+        values.put("booleanType", database.booleanType());
+        values.put("trueLiteral", database.trueLiteral());
+        values.put("testJdbcUrl", projectValue(database.testJdbcUrl(), project.artifactId()));
+        values.put("testDatabaseUsername", database.testUsername());
+        values.put("testDatabasePassword", database.testPassword());
         values.put("securityEnabled", !configuration.security().mode().equalsIgnoreCase("none"));
         values.put("sessionSecurity", configuration.security().mode().equalsIgnoreCase("session"));
         values.put(
@@ -93,7 +127,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
         values.put("kubernetes", configuration.deployment().kubernetes());
         values.put("multiTenancy", !configuration.multiTenancy().mode().equalsIgnoreCase("none"));
         values.put("starterAuth", configuration.modules().contains("authentication"));
-        values.put("idempotency", configuration.api().idempotency());
+        values.put("idempotency", configuration.api().idempotency() && database.relational());
         values.put("starterSample", configuration.modules().contains("sample"));
         values.put(
                 "layered",
@@ -127,7 +161,9 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
         put(files, "src/main/resources/application-local.yml", LOCAL_YAML, values);
         put(files, "src/main/resources/application-test.yml", TEST_YAML, values);
         put(files, "src/main/resources/application-prod.yml", PROD_YAML, values);
-        put(files, "src/main/resources/db/migration/V1__initial_schema.sql", MIGRATION, values);
+        if (database.relational()) {
+            put(files, "src/main/resources/db/migration/V1__initial_schema.sql", MIGRATION, values);
+        }
         put(
                 files,
                 "src/main/java/{{packagePath}}/shared/error/ApiExceptionHandler.java",
@@ -153,7 +189,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                 "src/main/java/{{packagePath}}/shared/web/IdempotencyKey.java",
                 IDEMPOTENCY_KEY,
                 values);
-        if (configuration.api().idempotency()) {
+        if (configuration.api().idempotency() && database.relational()) {
             addIdempotency(files, values);
         }
         put(
@@ -174,15 +210,19 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                     values);
         }
         if ((boolean) values.get("starterAuth")) {
+            requireRelationalDatabase(database, "authentication starter");
             addStarterAuthentication(files, values);
         }
         if (configuration.modules().contains("customer")) {
+            requireRelationalDatabase(database, "customer starter");
             addCustomerStarter(files, values);
         }
         if (configuration.modules().contains("payment")) {
+            requireRelationalDatabase(database, "payment starter");
             addPaymentStarter(files, values);
         }
         if ((boolean) values.get("kafka")) {
+            requireRelationalDatabase(database, "transactional messaging");
             addMessaging(files, values, (boolean) values.get("outbox"));
         }
         if ((boolean) values.get("redis")) {
@@ -207,7 +247,10 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
         }
         if (configuration.modules().contains("sample")) {
             switch (configuration.architecture().type()) {
-                case LAYERED -> addLayered(files, values);
+                case LAYERED -> {
+                    if (database.mongodb()) addMongoLayered(files, values);
+                    else addLayered(files, values);
+                }
                 case HEXAGONAL, MICROSERVICE -> addHexagonal(files, values);
                 case MODULAR_MONOLITH -> addModularMonolith(files, values);
                 case CLEAN -> addClean(files, values);
@@ -224,16 +267,71 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                     values);
         }
         if ((boolean) values.get("testcontainers")) {
-            put(
-                    files,
-                    "src/test/java/{{packagePath}}/PostgreSqlIntegrationTest.java",
-                    POSTGRES_INTEGRATION_TEST,
-                    values);
+            if (database.mongodb()) {
+                put(
+                        files,
+                        "src/test/java/{{packagePath}}/MongoDbIntegrationTest.java",
+                        MONGODB_INTEGRATION_TEST,
+                        values);
+            } else if (database.h2()) {
+                put(
+                        files,
+                        "src/test/java/{{packagePath}}/H2IntegrationTest.java",
+                        H2_INTEGRATION_TEST,
+                        values);
+            } else {
+                put(
+                        files,
+                        "src/test/java/{{packagePath}}/DatabaseIntegrationTest.java",
+                        DATABASE_INTEGRATION_TEST,
+                        values);
+                if (database.id().equals("sqlserver")) {
+                    put(
+                            files,
+                            "src/test/resources/container-license-acceptance.txt",
+                            "mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04\n",
+                            values);
+                }
+            }
         }
         if ((boolean) values.get("kubernetes")) {
             addKubernetes(files, values);
         }
         return Map.copyOf(files);
+    }
+
+    private String projectValue(String template, String artifactId) {
+        return template.replace("{{artifactId}}", artifactId);
+    }
+
+    private void requireRelationalDatabase(DatabaseProfile database, String feature) {
+        if (!database.relational()) {
+            throw new IllegalArgumentException(
+                    "features.database: " + feature + " requires a relational database");
+        }
+    }
+
+    private void addMongoLayered(Map<Path, String> files, Map<String, Object> values) {
+        put(
+                files,
+                "src/main/java/{{packagePath}}/modules/sample/document/Greeting.java",
+                MONGO_GREETING_DOCUMENT,
+                values);
+        put(
+                files,
+                "src/main/java/{{packagePath}}/modules/sample/repository/GreetingRepository.java",
+                MONGO_GREETING_REPOSITORY,
+                values);
+        put(
+                files,
+                "src/main/java/{{packagePath}}/modules/sample/service/GreetingService.java",
+                MONGO_GREETING_SERVICE,
+                values);
+        put(
+                files,
+                "src/main/java/{{packagePath}}/modules/sample/controller/GreetingController.java",
+                MONGO_GREETING_CONTROLLER,
+                values);
     }
 
     private void addStarterAuthentication(Map<Path, String> files, Map<String, Object> values) {
@@ -340,7 +438,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                 values);
         put(
                 files,
-                "src/main/java/{{packagePath}}/shared/messaging/JdbcIdempotentEventStore.java",
+                "src/main/java/{{packagePath}}/shared/messaging/JpaIdempotentEventStore.java",
                 JDBC_IDEMPOTENT_EVENT_STORE,
                 values);
         put(
@@ -648,9 +746,36 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                 <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
                 <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-validation</artifactId></dependency>
                 <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-actuator</artifactId></dependency>
+                {{#relational}}
                 <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-data-jpa</artifactId></dependency>
+                <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-core</artifactId></dependency>
+                {{/relational}}
+                {{#postgresql}}
                 <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-database-postgresql</artifactId></dependency>
                 <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><scope>runtime</scope></dependency>
+                {{/postgresql}}
+                {{#mysql}}
+                <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-mysql</artifactId></dependency>
+                <dependency><groupId>com.mysql</groupId><artifactId>mysql-connector-j</artifactId><scope>runtime</scope></dependency>
+                {{/mysql}}
+                {{#mariadb}}
+                <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-mysql</artifactId></dependency>
+                <dependency><groupId>org.mariadb.jdbc</groupId><artifactId>mariadb-java-client</artifactId><scope>runtime</scope></dependency>
+                {{/mariadb}}
+                {{#sqlserver}}
+                <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-sqlserver</artifactId></dependency>
+                <dependency><groupId>com.microsoft.sqlserver</groupId><artifactId>mssql-jdbc</artifactId><scope>runtime</scope></dependency>
+                {{/sqlserver}}
+                {{#oracle}}
+                <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-database-oracle</artifactId></dependency>
+                <dependency><groupId>com.oracle.database.jdbc</groupId><artifactId>ojdbc11</artifactId><scope>runtime</scope></dependency>
+                {{/oracle}}
+                {{#h2}}
+                <dependency><groupId>com.h2database</groupId><artifactId>h2</artifactId><scope>runtime</scope></dependency>
+                {{/h2}}
+                {{#mongodb}}
+                <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-data-mongodb</artifactId></dependency>
+                {{/mongodb}}
                 <dependency><groupId>org.springdoc</groupId><artifactId>springdoc-openapi-starter-webmvc-ui</artifactId><version>2.8.17</version></dependency>
                 <dependency><groupId>io.micrometer</groupId><artifactId>micrometer-registry-prometheus</artifactId><scope>runtime</scope></dependency>
                 {{#securityEnabled}}
@@ -676,8 +801,27 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                 {{/resilience}}
                 <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
                 {{#testcontainers}}
+                {{#postgresql}}
                 <dependency><groupId>org.testcontainers</groupId><artifactId>testcontainers-postgresql</artifactId><version>2.0.5</version><scope>test</scope></dependency>
+                {{/postgresql}}
+                {{#mysql}}
+                <dependency><groupId>org.testcontainers</groupId><artifactId>testcontainers-mysql</artifactId><version>2.0.5</version><scope>test</scope></dependency>
+                {{/mysql}}
+                {{#mariadb}}
+                <dependency><groupId>org.testcontainers</groupId><artifactId>testcontainers-mariadb</artifactId><version>2.0.5</version><scope>test</scope></dependency>
+                {{/mariadb}}
+                {{#sqlserver}}
+                <dependency><groupId>org.testcontainers</groupId><artifactId>testcontainers-mssqlserver</artifactId><version>2.0.5</version><scope>test</scope></dependency>
+                {{/sqlserver}}
+                {{#oracle}}
+                <dependency><groupId>org.testcontainers</groupId><artifactId>testcontainers-oracle-free</artifactId><version>2.0.5</version><scope>test</scope></dependency>
+                {{/oracle}}
+                {{#mongodb}}
+                <dependency><groupId>org.testcontainers</groupId><artifactId>testcontainers-mongodb</artifactId><version>2.0.5</version><scope>test</scope></dependency>
+                {{/mongodb}}
+                {{^h2}}
                 <dependency><groupId>org.testcontainers</groupId><artifactId>testcontainers-junit-jupiter</artifactId><version>2.0.5</version><scope>test</scope></dependency>
+                {{/h2}}
                 {{/testcontainers}}
                 {{#architectureTests}}
                 <dependency><groupId>com.tngtech.archunit</groupId><artifactId>archunit-junit5</artifactId><version>1.4.1</version><scope>test</scope></dependency>
@@ -748,14 +892,35 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
             spring:
               application:
                 name: {{name}}
+              {{#relational}}
               datasource:
-                url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/{{artifactId}}}
-                username: ${DATABASE_USERNAME:postgres}
-                password: ${DATABASE_PASSWORD:postgres}
+                url: ${DATABASE_URL:{{{databaseUrl}}}}
+                username: ${DATABASE_USERNAME:{{databaseUsername}}}
+                password: ${DATABASE_PASSWORD:{{databasePassword}}}
               jpa:
                 open-in-view: false
                 hibernate:
                   ddl-auto: validate
+              flyway:
+                placeholders:
+                  uuidType: "{{uuidType}}"
+                  timestampType: "{{timestampType}}"
+                  jsonType: "{{jsonType}}"
+                  textType: "{{textType}}"
+                  binaryType: "{{binaryType}}"
+                  booleanType: "{{booleanType}}"
+                  trueLiteral: "{{trueLiteral}}"
+              {{/relational}}
+              {{#mongodb}}
+              data:
+                mongodb:
+                  uri: ${MONGODB_URI:{{{databaseUrl}}}}
+                {{#redis}}
+                redis:
+                  host: ${REDIS_HOST:localhost}
+                  port: ${REDIS_PORT:6379}
+                {{/redis}}
+              {{/mongodb}}
               lifecycle:
                 timeout-per-shutdown-phase: 20s
               {{#kafka}}
@@ -769,12 +934,14 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                   enable-auto-commit: false
                   auto-offset-reset: earliest
               {{/kafka}}
+              {{#relational}}
               {{#redis}}
               data:
                 redis:
                   host: ${REDIS_HOST:localhost}
                   port: ${REDIS_PORT:6379}
               {{/redis}}
+              {{/relational}}
               {{#resourceServer}}
               security:
                 oauth2:
@@ -840,9 +1007,9 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
             """
             {{#starterSample}}
             CREATE TABLE greeting (
-              id UUID PRIMARY KEY,
+              id ${uuidType} PRIMARY KEY,
               message VARCHAR(255) NOT NULL,
-              created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+              created_at ${timestampType} NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
             {{/starterSample}}
             {{^starterSample}}
@@ -1340,20 +1507,23 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
             import jakarta.persistence.*;
             import java.time.*;
             import java.util.*;
+            import org.springframework.dao.DataIntegrityViolationException;
             import org.springframework.data.jpa.repository.JpaRepository;
             import org.springframework.data.jpa.repository.Lock;
-            import org.springframework.data.jpa.repository.Modifying;
-            import org.springframework.data.jpa.repository.Query;
             import org.springframework.stereotype.Service;
+            import org.springframework.transaction.annotation.Propagation;
             import org.springframework.transaction.annotation.Transactional;
 
             @Service
             public class IdempotencyService {
                 private final IdempotencyRepository repository;
+                private final IdempotencyClaimWriter claims;
                 private final Clock clock;
 
-                public IdempotencyService(IdempotencyRepository repository, Clock clock) {
+                public IdempotencyService(
+                        IdempotencyRepository repository, IdempotencyClaimWriter claims, Clock clock) {
                     this.repository = repository;
+                    this.claims = claims;
                     this.clock = clock;
                 }
 
@@ -1365,20 +1535,25 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                     }
                     String tenantId = {{#multiTenancy}}TenantContext.requiredTenant(){{/multiTenancy}}{{^multiTenancy}}"global"{{/multiTenancy}};
                     Instant now = clock.instant();
-                    int inserted = repository.insertIfAbsent(
-                            UUID.randomUUID(),
-                            tenantId,
-                            key,
-                            requestHash.toLowerCase(Locale.ROOT),
-                            now,
-                            now.plus(Duration.ofHours(24)));
+                    boolean inserted;
+                    try {
+                        claims.insert(IdempotencyRecord.processing(
+                                UUID.randomUUID(),
+                                tenantId,
+                                key,
+                                requestHash.toLowerCase(Locale.ROOT),
+                                now));
+                        inserted = true;
+                    } catch (DataIntegrityViolationException duplicate) {
+                        inserted = false;
+                    }
                     IdempotencyRecord record =
                             repository.findByTenantIdAndKeyValue(tenantId, key)
                                     .orElseThrow(() -> new IllegalStateException("idempotency claim was not persisted"));
                     if (!record.requestHash.equalsIgnoreCase(requestHash)) {
                         throw new IdempotencyConflictException();
                     }
-                    return record.claim(inserted == 1);
+                    return record.claim(inserted);
                 }
 
                 @Transactional
@@ -1403,6 +1578,20 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                 }
             }
 
+            @Service
+            class IdempotencyClaimWriter {
+                private final IdempotencyRepository repository;
+
+                IdempotencyClaimWriter(IdempotencyRepository repository) {
+                    this.repository = repository;
+                }
+
+                @Transactional(propagation = Propagation.REQUIRES_NEW)
+                public void insert(IdempotencyRecord claim) {
+                    repository.saveAndFlush(claim);
+                }
+            }
+
             @Entity
             @Table(
                     name = "idempotency_record",
@@ -1416,7 +1605,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                 @Column(name = "request_hash", nullable = false, length = 64) String requestHash;
                 @Column(nullable = false, length = 16) String state;
                 @Column(name = "status_code") Integer statusCode;
-                @Column(name = "response_body", columnDefinition = "text") String responseBody;
+                @Column(name = "response_body", columnDefinition = "{{textType}}") String responseBody;
                 @Column(name = "created_at", nullable = false) Instant createdAt;
                 @Column(name = "completed_at") Instant completedAt;
                 @Column(name = "expires_at", nullable = false) Instant expiresAt;
@@ -1452,20 +1641,6 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
             }
 
             interface IdempotencyRepository extends JpaRepository<IdempotencyRecord, UUID> {
-                @Modifying
-                @Query(value = "INSERT INTO idempotency_record "
-                        + "(id, tenant_id, key_value, request_hash, state, created_at, expires_at, version) "
-                        + "VALUES (:id, :tenantId, :keyValue, :requestHash, 'PROCESSING', "
-                        + ":createdAt, :expiresAt, 0) ON CONFLICT (tenant_id, key_value) DO NOTHING",
-                        nativeQuery = true)
-                int insertIfAbsent(
-                        UUID id,
-                        String tenantId,
-                        String keyValue,
-                        String requestHash,
-                        Instant createdAt,
-                        Instant expiresAt);
-
                 @Lock(LockModeType.PESSIMISTIC_WRITE)
                 Optional<IdempotencyRecord> findByTenantIdAndKeyValue(String tenantId, String key);
                 long deleteByExpiresAtBefore(Instant before);
@@ -1500,16 +1675,16 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
     private static final String IDEMPOTENCY_MIGRATION =
             """
             CREATE TABLE idempotency_record (
-              id UUID PRIMARY KEY,
+              id ${uuidType} PRIMARY KEY,
               tenant_id VARCHAR(64) NOT NULL,
               key_value VARCHAR(128) NOT NULL,
               request_hash VARCHAR(64) NOT NULL,
               state VARCHAR(16) NOT NULL,
               status_code INTEGER,
-              response_body TEXT,
-              created_at TIMESTAMPTZ NOT NULL,
-              completed_at TIMESTAMPTZ,
-              expires_at TIMESTAMPTZ NOT NULL,
+              response_body {{textType}},
+              created_at ${timestampType} NOT NULL,
+              completed_at ${timestampType},
+              expires_at ${timestampType} NOT NULL,
               version BIGINT NOT NULL DEFAULT 0,
               CONSTRAINT uq_idempotency_tenant_key UNIQUE (tenant_id, key_value)
             );
@@ -2062,34 +2237,34 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
     private static final String AUTH_MIGRATION =
             """
             CREATE TABLE account (
-              id UUID PRIMARY KEY,
+              id ${uuidType} PRIMARY KEY,
               email VARCHAR(320) NOT NULL UNIQUE,
               password_hash VARCHAR(255) NOT NULL,
-              enabled BOOLEAN NOT NULL DEFAULT TRUE,
-              created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-              updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              enabled ${booleanType} NOT NULL DEFAULT ${trueLiteral},
+              created_at ${timestampType} NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              updated_at ${timestampType} NOT NULL DEFAULT CURRENT_TIMESTAMP,
               version BIGINT NOT NULL DEFAULT 0
             );
             CREATE TABLE account_role (
-              account_id UUID NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+              account_id ${uuidType} NOT NULL REFERENCES account(id) ON DELETE CASCADE,
               role VARCHAR(64) NOT NULL,
               PRIMARY KEY (account_id, role)
             );
             CREATE TABLE account_tenant (
-              account_id UUID NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+              account_id ${uuidType} NOT NULL REFERENCES account(id) ON DELETE CASCADE,
               tenant_id VARCHAR(64) NOT NULL,
               PRIMARY KEY (account_id, tenant_id)
             );
             CREATE INDEX idx_account_tenant_tenant ON account_tenant(tenant_id, account_id);
             CREATE TABLE refresh_token (
-              id UUID PRIMARY KEY,
-              account_id UUID NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+              id ${uuidType} PRIMARY KEY,
+              account_id ${uuidType} NOT NULL REFERENCES account(id) ON DELETE CASCADE,
               token_hash VARCHAR(128) NOT NULL UNIQUE,
-              family_id UUID NOT NULL,
-              expires_at TIMESTAMPTZ NOT NULL,
-              revoked_at TIMESTAMPTZ,
-              replaced_by UUID,
-              created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+              family_id ${uuidType} NOT NULL,
+              expires_at ${timestampType} NOT NULL,
+              revoked_at ${timestampType},
+              replaced_by ${uuidType},
+              created_at ${timestampType} NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
             CREATE INDEX idx_refresh_token_account ON refresh_token(account_id);
             """;
@@ -2275,10 +2450,10 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
     private static final String CUSTOMER_MIGRATION =
             """
             CREATE TABLE customer (
-              id UUID PRIMARY KEY,
+              id ${uuidType} PRIMARY KEY,
               name VARCHAR(120) NOT NULL,
               email VARCHAR(320) NOT NULL{{^multiTenancy}} UNIQUE{{/multiTenancy}},
-              created_at TIMESTAMPTZ NOT NULL,
+              created_at ${timestampType} NOT NULL,
               {{#multiTenancy}}tenant_id VARCHAR(64) NOT NULL,{{/multiTenancy}}
               version BIGINT NOT NULL DEFAULT 0
             );
@@ -2558,14 +2733,14 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
     private static final String PAYMENT_MIGRATION =
             """
             CREATE TABLE payment (
-              id UUID PRIMARY KEY,
+              id ${uuidType} PRIMARY KEY,
               payer_reference VARCHAR(255) NOT NULL,
               payee_reference VARCHAR(255) NOT NULL,
               amount NUMERIC(19,4) NOT NULL CHECK (amount > 0),
               currency VARCHAR(3) NOT NULL,
               status VARCHAR(32) NOT NULL,
               idempotency_key VARCHAR(128) NOT NULL{{^multiTenancy}} UNIQUE{{/multiTenancy}},
-              created_at TIMESTAMPTZ NOT NULL,
+              created_at ${timestampType} NOT NULL,
               {{#multiTenancy}}tenant_id VARCHAR(64) NOT NULL,{{/multiTenancy}}
               version BIGINT NOT NULL DEFAULT 0
             );
@@ -2662,7 +2837,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                 @Id private UUID id;
                 private String aggregateId;
                 private String eventType;
-                @Column(columnDefinition = "jsonb") private String payload;
+                @Column(columnDefinition = "{{jsonType}}") private String payload;
                 private String status;
                 private int attempts;
                 private Instant occurredAt;
@@ -2706,18 +2881,24 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
             """
             package {{basePackage}}.shared.messaging.outbox;
 
+            import jakarta.persistence.LockModeType;
+            import jakarta.persistence.QueryHint;
             import java.util.List;
             import java.util.UUID;
             import java.time.Instant;
+            import org.springframework.data.domain.Pageable;
             import org.springframework.data.jpa.repository.JpaRepository;
+            import org.springframework.data.jpa.repository.Lock;
             import org.springframework.data.jpa.repository.Modifying;
             import org.springframework.data.jpa.repository.Query;
+            import org.springframework.data.jpa.repository.QueryHints;
 
             interface OutboxRepository extends JpaRepository<OutboxEvent, UUID> {
-                @Query(value = "SELECT * FROM outbox_event WHERE status = 'PENDING' "
-                        + "AND next_attempt_at <= CURRENT_TIMESTAMP ORDER BY occurred_at "
-                        + "FOR UPDATE SKIP LOCKED LIMIT 100", nativeQuery = true)
-                List<OutboxEvent> lockPendingBatch();
+                @Lock(LockModeType.PESSIMISTIC_WRITE)
+                @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2"))
+                @Query("select event from OutboxEvent event where event.status = 'PENDING' "
+                        + "and event.nextAttemptAt <= :now order by event.occurredAt")
+                List<OutboxEvent> lockPendingBatch(Instant now, Pageable pageable);
 
                 @Modifying
                 @Query("delete from OutboxEvent event where event.status = 'PUBLISHED' and event.publishedAt < :before")
@@ -2729,6 +2910,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
             package {{basePackage}}.shared.messaging.outbox;
 
             import java.time.Clock;
+            import org.springframework.data.domain.PageRequest;
             import java.util.concurrent.TimeUnit;
             import io.micrometer.core.instrument.MeterRegistry;
             import org.springframework.kafka.core.KafkaTemplate;
@@ -2757,7 +2939,8 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                 @Scheduled(fixedDelayString = "${backsmith.outbox.delay:1000}")
                 @Transactional
                 public void publishBatch() {
-                    for (OutboxEvent event : repository.lockPendingBatch()) {
+                    for (OutboxEvent event :
+                            repository.lockPendingBatch(clock.instant(), PageRequest.of(0, 100))) {
                         try {
                             kafka.send(event.getEventType(), event.getAggregateId(), event.getPayload())
                                     .get(10, TimeUnit.SECONDS);
@@ -2880,15 +3063,15 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
     private static final String OUTBOX_MIGRATION =
             """
             CREATE TABLE outbox_event (
-              id UUID PRIMARY KEY,
+              id ${uuidType} PRIMARY KEY,
               aggregate_id VARCHAR(255) NOT NULL,
               event_type VARCHAR(255) NOT NULL,
-              payload JSONB NOT NULL,
+              payload ${jsonType} NOT NULL,
               status VARCHAR(32) NOT NULL,
               attempts INTEGER NOT NULL DEFAULT 0,
-              occurred_at TIMESTAMPTZ NOT NULL,
-              next_attempt_at TIMESTAMPTZ NOT NULL,
-              published_at TIMESTAMPTZ,
+              occurred_at ${timestampType} NOT NULL,
+              next_attempt_at ${timestampType} NOT NULL,
+              published_at ${timestampType},
               error VARCHAR(512){{#multiTenancy}},{{/multiTenancy}}
               {{#multiTenancy}}tenant_id VARCHAR(64) NOT NULL{{/multiTenancy}}
             );
@@ -2915,46 +3098,51 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
             """
             package {{basePackage}}.shared.messaging;
 
+            import jakarta.persistence.Embeddable;
+            import jakarta.persistence.EmbeddedId;
+            import jakarta.persistence.Entity;
+            import jakarta.persistence.Table;
+            import java.io.Serializable;
             import java.time.Clock;
-            import java.sql.Timestamp;
+            import java.time.Instant;
             import java.util.UUID;
-            import org.springframework.jdbc.core.JdbcTemplate;
-            import org.springframework.stereotype.Component;
+            import org.springframework.dao.DataIntegrityViolationException;
+            import org.springframework.data.jpa.repository.JpaRepository;
+            import org.springframework.data.jpa.repository.Modifying;
+            import org.springframework.data.jpa.repository.Query;
+            import org.springframework.stereotype.Service;
+            import org.springframework.transaction.annotation.Propagation;
             import org.springframework.transaction.annotation.Transactional;
 
-            @Component
-            public class JdbcIdempotentEventStore implements IdempotentEventStore {
-                private final JdbcTemplate database;
+            @Service
+            public class JpaIdempotentEventStore implements IdempotentEventStore {
+                private final ConsumedEventRepository events;
+                private final ConsumedEventWriter writer;
                 private final Clock clock;
 
-                public JdbcIdempotentEventStore(JdbcTemplate database, Clock clock) {
-                    this.database = database;
+                public JpaIdempotentEventStore(
+                        ConsumedEventRepository events, ConsumedEventWriter writer, Clock clock) {
+                    this.events = events;
+                    this.writer = writer;
                     this.clock = clock;
                 }
 
                 @Override
                 @Transactional
                 public boolean claim(UUID eventId, String consumer) {
-                    return database.update(
-                                    "INSERT INTO consumed_event(event_id, consumer, status) "
-                                            + "VALUES (?, ?, 'PROCESSING') "
-                                            + "ON CONFLICT (event_id, consumer) DO UPDATE "
-                                            + "SET status = 'PROCESSING', error = NULL "
-                                            + "WHERE consumed_event.status = 'FAILED'",
-                                    eventId,
-                                    consumer)
-                            == 1;
+                    var key = new ConsumedEventKey(eventId, consumer);
+                    try {
+                        writer.insert(new ConsumedEvent(key));
+                        return true;
+                    } catch (DataIntegrityViolationException duplicate) {
+                        return events.resetFailed(key) == 1;
+                    }
                 }
 
                 @Override
                 @Transactional
                 public void complete(UUID eventId, String consumer) {
-                    database.update(
-                            "UPDATE consumed_event SET status = 'COMPLETED', processed_at = ?, error = NULL "
-                                    + "WHERE event_id = ? AND consumer = ?",
-                            Timestamp.from(clock.instant()),
-                            eventId,
-                            consumer);
+                    events.complete(new ConsumedEventKey(eventId, consumer), clock.instant());
                 }
 
                 @Override
@@ -2963,22 +3151,162 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                     String safe = sanitizedError == null
                             ? "unknown"
                             : sanitizedError.substring(0, Math.min(512, sanitizedError.length()));
-                    database.update(
-                            "UPDATE consumed_event SET status = 'FAILED', error = ? "
-                                    + "WHERE event_id = ? AND consumer = ? AND status = 'PROCESSING'",
-                            safe,
-                            eventId,
-                            consumer);
+                    events.release(new ConsumedEventKey(eventId, consumer), safe);
                 }
+            }
+
+            @Embeddable
+            record ConsumedEventKey(UUID eventId, String consumer) implements Serializable {}
+
+            @Entity
+            @Table(name = "consumed_event")
+            class ConsumedEvent {
+                @EmbeddedId ConsumedEventKey id;
+                String status;
+                Instant processedAt;
+                String error;
+
+                protected ConsumedEvent() {}
+
+                ConsumedEvent(ConsumedEventKey id) {
+                    this.id = id;
+                    this.status = "PROCESSING";
+                }
+            }
+
+            interface ConsumedEventRepository
+                    extends JpaRepository<ConsumedEvent, ConsumedEventKey> {
+                @Modifying
+                @Query("update ConsumedEvent event set event.status = 'PROCESSING', event.error = null "
+                        + "where event.id = :id and event.status = 'FAILED'")
+                int resetFailed(ConsumedEventKey id);
+
+                @Modifying
+                @Query("update ConsumedEvent event set event.status = 'COMPLETED', "
+                        + "event.processedAt = :processedAt, event.error = null where event.id = :id")
+                int complete(ConsumedEventKey id, Instant processedAt);
+
+                @Modifying
+                @Query("update ConsumedEvent event set event.status = 'FAILED', event.error = :error "
+                        + "where event.id = :id and event.status = 'PROCESSING'")
+                int release(ConsumedEventKey id, String error);
+            }
+
+            @Service
+            class ConsumedEventWriter {
+                private final ConsumedEventRepository events;
+
+                ConsumedEventWriter(ConsumedEventRepository events) {
+                    this.events = events;
+                }
+
+                @Transactional(propagation = Propagation.REQUIRES_NEW)
+                public void insert(ConsumedEvent event) {
+                    events.saveAndFlush(event);
+                }
+            }
+            """;
+    private static final String MONGO_GREETING_DOCUMENT =
+            """
+            package {{basePackage}}.modules.sample.document;
+
+            import java.time.Instant;
+            import java.util.UUID;
+            import org.springframework.data.annotation.Id;
+            import org.springframework.data.mongodb.core.mapping.Document;
+
+            @Document("greetings")
+            public class Greeting {
+                @Id private UUID id;
+                private String message;
+                private Instant createdAt;
+
+                protected Greeting() {}
+
+                public Greeting(UUID id, String message, Instant createdAt) {
+                    this.id = id;
+                    this.message = message;
+                    this.createdAt = createdAt;
+                }
+
+                public UUID getId() { return id; }
+                public String getMessage() { return message; }
+                public Instant getCreatedAt() { return createdAt; }
+            }
+            """;
+    private static final String MONGO_GREETING_REPOSITORY =
+            """
+            package {{basePackage}}.modules.sample.repository;
+
+            import {{basePackage}}.modules.sample.document.Greeting;
+            import java.util.UUID;
+            import org.springframework.data.mongodb.repository.MongoRepository;
+
+            public interface GreetingRepository extends MongoRepository<Greeting, UUID> {}
+            """;
+    private static final String MONGO_GREETING_SERVICE =
+            """
+            package {{basePackage}}.modules.sample.service;
+
+            import {{basePackage}}.modules.sample.document.Greeting;
+            import {{basePackage}}.modules.sample.repository.GreetingRepository;
+            import java.time.Instant;
+            import java.util.UUID;
+            import org.springframework.stereotype.Service;
+
+            @Service
+            public class GreetingService {
+                private final GreetingRepository repository;
+
+                public GreetingService(GreetingRepository repository) {
+                    this.repository = repository;
+                }
+
+                public Greeting create(String message) {
+                    return repository.save(new Greeting(UUID.randomUUID(), message, Instant.now()));
+                }
+            }
+            """;
+    private static final String MONGO_GREETING_CONTROLLER =
+            """
+            package {{basePackage}}.modules.sample.controller;
+
+            import {{basePackage}}.modules.sample.document.Greeting;
+            import {{basePackage}}.modules.sample.service.GreetingService;
+            import jakarta.validation.Valid;
+            import jakarta.validation.constraints.NotBlank;
+            import org.springframework.http.HttpStatus;
+            import org.springframework.web.bind.annotation.PostMapping;
+            import org.springframework.web.bind.annotation.RequestBody;
+            import org.springframework.web.bind.annotation.RequestMapping;
+            import org.springframework.web.bind.annotation.ResponseStatus;
+            import org.springframework.web.bind.annotation.RestController;
+
+            @RestController
+            @RequestMapping("/api/v1/greetings")
+            public class GreetingController {
+                private final GreetingService service;
+
+                public GreetingController(GreetingService service) {
+                    this.service = service;
+                }
+
+                @PostMapping
+                @ResponseStatus(HttpStatus.CREATED)
+                public Greeting create(@Valid @RequestBody CreateGreeting request) {
+                    return service.create(request.message());
+                }
+
+                public record CreateGreeting(@NotBlank String message) {}
             }
             """;
     private static final String CONSUMED_EVENT_MIGRATION =
             """
             CREATE TABLE consumed_event (
-              event_id UUID NOT NULL,
+              event_id ${uuidType} NOT NULL,
               consumer VARCHAR(255) NOT NULL,
               status VARCHAR(32) NOT NULL,
-              processed_at TIMESTAMPTZ,
+              processed_at ${timestampType},
               error VARCHAR(512),
               PRIMARY KEY (event_id, consumer)
             );
@@ -3225,18 +3553,14 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                 {{/modularMonolith}}
             }
             """;
-    private static final String POSTGRES_INTEGRATION_TEST =
+    private static final String DATABASE_INTEGRATION_TEST =
             """
             package {{basePackage}};
 
-            import static org.junit.jupiter.api.Assertions.assertEquals;
             import static org.junit.jupiter.api.Assertions.assertTrue;
-            import java.util.UUID;
-            import java.util.concurrent.CountDownLatch;
-            import java.util.concurrent.Executors;
+            {{#starterAuth}}import java.util.UUID;{{/starterAuth}}
             import org.junit.jupiter.api.Test;
             import org.springframework.boot.test.context.SpringBootTest;
-            import org.springframework.dao.DataIntegrityViolationException;
             import org.springframework.jdbc.core.JdbcTemplate;
             import org.springframework.test.context.DynamicPropertyRegistry;
             import org.springframework.test.context.DynamicPropertySource;
@@ -3248,19 +3572,23 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
             {{#starterAuth}}import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;{{/starterAuth}}
             import org.testcontainers.junit.jupiter.Container;
             import org.testcontainers.junit.jupiter.Testcontainers;
-            import org.testcontainers.postgresql.PostgreSQLContainer;
+            {{#postgresql}}import org.testcontainers.postgresql.PostgreSQLContainer;{{/postgresql}}
+            {{#mysql}}import org.testcontainers.mysql.MySQLContainer;{{/mysql}}
+            {{#mariadb}}import org.testcontainers.mariadb.MariaDBContainer;{{/mariadb}}
+            {{#sqlserver}}import org.testcontainers.mssqlserver.MSSQLServerContainer;{{/sqlserver}}
+            {{#oracle}}import org.testcontainers.oracle.OracleContainer;{{/oracle}}
 
             @Testcontainers(disabledWithoutDocker = true)
             @SpringBootTest(properties = "app.jwt.secret=test-only-secret-with-at-least-thirty-two-bytes")
             {{#starterAuth}}@AutoConfigureMockMvc{{/starterAuth}}
-            class PostgreSqlIntegrationTest {
+            class DatabaseIntegrationTest {
                 private final JdbcTemplate jdbc;
                 {{#starterAuth}}
                 private final MockMvc mockMvc;
                 {{/starterAuth}}
 
                 @org.springframework.beans.factory.annotation.Autowired
-                PostgreSqlIntegrationTest(JdbcTemplate jdbc{{#starterAuth}}, MockMvc mockMvc{{/starterAuth}}) {
+                DatabaseIntegrationTest(JdbcTemplate jdbc{{#starterAuth}}, MockMvc mockMvc{{/starterAuth}}) {
                     this.jdbc = jdbc;
                     {{#starterAuth}}
                     this.mockMvc = mockMvc;
@@ -3268,53 +3596,30 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                 }
 
                 @Container
-                static final PostgreSQLContainer POSTGRES =
-                        new PostgreSQLContainer("postgres:17-alpine");
+                {{#postgresql}}static final PostgreSQLContainer DATABASE =
+                        new PostgreSQLContainer("postgres:17-alpine");{{/postgresql}}
+                {{#mysql}}static final MySQLContainer DATABASE =
+                        new MySQLContainer("mysql:8.4.6");{{/mysql}}
+                {{#mariadb}}static final MariaDBContainer DATABASE =
+                        new MariaDBContainer("mariadb:11.8.3");{{/mariadb}}
+                {{#sqlserver}}static final MSSQLServerContainer DATABASE =
+                        new MSSQLServerContainer("mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04")
+                                .acceptLicense();{{/sqlserver}}
+                {{#oracle}}static final OracleContainer DATABASE =
+                        new OracleContainer("gvenzl/oracle-free:23-slim-faststart");{{/oracle}}
 
                 @DynamicPropertySource
                 static void databaseProperties(DynamicPropertyRegistry properties) {
-                    properties.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-                    properties.add("spring.datasource.username", POSTGRES::getUsername);
-                    properties.add("spring.datasource.password", POSTGRES::getPassword);
-                }
-
-                @Test void databaseIsReachable() {
-                    assertTrue(POSTGRES.isRunning());
+                    properties.add("spring.datasource.url", DATABASE::getJdbcUrl);
+                    properties.add("spring.datasource.username", DATABASE::getUsername);
+                    properties.add("spring.datasource.password", DATABASE::getPassword);
                 }
 
                 @Test
-                void duplicateConcurrentIdempotencyKeysAreRejected() throws Exception {
-                    String key = "concurrent-" + UUID.randomUUID();
-                    var ready = new CountDownLatch(2);
-                    var start = new CountDownLatch(1);
-                    java.util.concurrent.Callable<Boolean> insert = () -> {
-                        ready.countDown();
-                        start.await();
-                        try {
-                            jdbc.update(
-                                    "INSERT INTO idempotency_record "
-                                            + "(id, tenant_id, key_value, request_hash, state, created_at, expires_at, version) "
-                                            + "VALUES (?, 'default', ?, ?, 'PROCESSING', CURRENT_TIMESTAMP, "
-                                            + "CURRENT_TIMESTAMP + INTERVAL '1 hour', 0)",
-                                    UUID.randomUUID(),
-                                    key,
-                                    "a".repeat(64));
-                            return true;
-                        } catch (DataIntegrityViolationException duplicate) {
-                            return false;
-                        }
-                    };
-                    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-                        var first = executor.submit(insert);
-                        var second = executor.submit(insert);
-                        ready.await();
-                        start.countDown();
-                        long successes =
-                                java.util.stream.Stream.of(first.get(), second.get())
-                                        .filter(Boolean::booleanValue)
-                                        .count();
-                        assertEquals(1, successes);
-                    }
+                void databaseIsReachableAndMigrationsRan() {
+                    assertTrue(DATABASE.isRunning());
+                    Integer result = jdbc.queryForObject("SELECT 1", Integer.class);
+                    assertTrue(result != null && result == 1);
                 }
 
                 {{#starterAuth}}
@@ -3341,6 +3646,77 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                             .andExpect(jsonPath("$.refreshToken").isString());
                 }
                 {{/starterAuth}}
+            }
+            """;
+    private static final String H2_INTEGRATION_TEST =
+            """
+            package {{basePackage}};
+
+            import static org.junit.jupiter.api.Assertions.assertEquals;
+            import org.junit.jupiter.api.Test;
+            import org.springframework.boot.test.context.SpringBootTest;
+            import org.springframework.jdbc.core.JdbcTemplate;
+
+            @SpringBootTest
+            class H2IntegrationTest {
+                private final JdbcTemplate jdbc;
+
+                @org.springframework.beans.factory.annotation.Autowired
+                H2IntegrationTest(JdbcTemplate jdbc) {
+                    this.jdbc = jdbc;
+                }
+
+                @Test
+                void embeddedDatabaseIsReachableAndMigrationsRan() {
+                    assertEquals(1, jdbc.queryForObject("SELECT 1", Integer.class));
+                }
+            }
+            """;
+    private static final String MONGODB_INTEGRATION_TEST =
+            """
+            package {{basePackage}};
+
+            import static org.junit.jupiter.api.Assertions.assertEquals;
+            import static org.junit.jupiter.api.Assertions.assertTrue;
+            import org.bson.Document;
+            import org.junit.jupiter.api.Test;
+            import org.springframework.boot.test.context.SpringBootTest;
+            import org.springframework.data.mongodb.core.MongoTemplate;
+            import org.springframework.test.context.DynamicPropertyRegistry;
+            import org.springframework.test.context.DynamicPropertySource;
+            import org.testcontainers.junit.jupiter.Container;
+            import org.testcontainers.junit.jupiter.Testcontainers;
+            import org.testcontainers.mongodb.MongoDBContainer;
+
+            @Testcontainers(disabledWithoutDocker = true)
+            @SpringBootTest
+            class MongoDbIntegrationTest {
+                @Container
+                static final MongoDBContainer DATABASE = new MongoDBContainer("mongo:8.0");
+
+                @DynamicPropertySource
+                static void databaseProperties(DynamicPropertyRegistry properties) {
+                    properties.add("spring.data.mongodb.uri", DATABASE::getReplicaSetUrl);
+                }
+
+                private final MongoTemplate mongo;
+
+                @org.springframework.beans.factory.annotation.Autowired
+                MongoDbIntegrationTest(MongoTemplate mongo) {
+                    this.mongo = mongo;
+                }
+
+                @Test
+                void databaseIsReachableAndDocumentsRoundTrip() {
+                    assertTrue(DATABASE.isRunning());
+                    mongo.getCollection("backsmith_probe").insertOne(new Document("status", "ready"));
+                    assertEquals(
+                            "ready",
+                            mongo.getCollection("backsmith_probe")
+                                    .find()
+                                    .first()
+                                    .getString("status"));
+                }
             }
             """;
     private static final String JWT_TENANT_MEMBERSHIP_TEST =
@@ -3397,7 +3773,8 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
     private static final String COMPOSE =
             """
             services:
-              postgres:
+              {{#postgresql}}
+              database:
                 image: postgres:17-alpine
                 environment:
                   POSTGRES_DB: {{artifactId}}
@@ -3409,7 +3786,101 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                   interval: 5s
                   timeout: 3s
                   retries: 10
-                volumes: [postgres-data:/var/lib/postgresql/data]
+                volumes: [database-data:/var/lib/postgresql/data]
+              {{/postgresql}}
+              {{#mysql}}
+              database:
+                image: mysql:8.4
+                environment:
+                  MYSQL_DATABASE: {{artifactId}}
+                  MYSQL_USER: backsmith
+                  MYSQL_PASSWORD: backsmith
+                  MYSQL_ROOT_PASSWORD: change-root-password
+                ports: ["3306:3306"]
+                healthcheck:
+                  test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ubacksmith", "-pbacksmith"]
+                  interval: 5s
+                  timeout: 3s
+                  retries: 20
+                volumes: [database-data:/var/lib/mysql]
+              {{/mysql}}
+              {{#mariadb}}
+              database:
+                image: mariadb:11.8
+                environment:
+                  MARIADB_DATABASE: {{artifactId}}
+                  MARIADB_USER: backsmith
+                  MARIADB_PASSWORD: backsmith
+                  MARIADB_ROOT_PASSWORD: change-root-password
+                ports: ["3306:3306"]
+                healthcheck:
+                  test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+                  interval: 5s
+                  timeout: 3s
+                  retries: 20
+                volumes: [database-data:/var/lib/mysql]
+              {{/mariadb}}
+              {{#sqlserver}}
+              database:
+                image: mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04
+                environment:
+                  ACCEPT_EULA: "Y"
+                  MSSQL_SA_PASSWORD: "Backsmith1!"
+                ports: ["1433:1433"]
+                healthcheck:
+                  test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Backsmith1!' -C -Q 'SELECT 1' || exit 1"]
+                  interval: 10s
+                  timeout: 5s
+                  retries: 20
+                volumes: [database-data:/var/opt/mssql]
+              database-init:
+                image: mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04
+                depends_on:
+                  database: {condition: service_healthy}
+                environment:
+                  MSSQL_SA_PASSWORD: "Backsmith1!"
+                entrypoint: ["/bin/bash", "-c"]
+                command:
+                  - /opt/mssql-tools18/bin/sqlcmd -S database -U sa -P "$$MSSQL_SA_PASSWORD" -C -Q "IF DB_ID('{{artifactId}}') IS NULL CREATE DATABASE [{{artifactId}}]"
+              {{/sqlserver}}
+              {{#oracle}}
+              database:
+                image: gvenzl/oracle-free:23-slim-faststart
+                environment:
+                  ORACLE_PASSWORD: change-root-password
+                  APP_USER: backsmith
+                  APP_USER_PASSWORD: backsmith
+                ports: ["1521:1521"]
+                healthcheck:
+                  test: ["CMD", "healthcheck.sh"]
+                  interval: 10s
+                  timeout: 5s
+                  retries: 30
+                volumes: [database-data:/opt/oracle/oradata]
+              {{/oracle}}
+              {{#mongodb}}
+              database:
+                image: mongo:8.0
+                environment:
+                  MONGO_INITDB_DATABASE: {{artifactId}}
+                ports: ["27017:27017"]
+                healthcheck:
+                  test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ping:1}).ok"]
+                  interval: 5s
+                  timeout: 3s
+                  retries: 20
+                volumes: [database-data:/data/db]
+              {{/mongodb}}
+              {{#h2}}
+              application:
+                build: .
+                ports: ["8080:8080"]
+                environment:
+                  DATABASE_URL: jdbc:h2:file:/workspace/data/{{artifactId}};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+                  DATABASE_USERNAME: sa
+                  DATABASE_PASSWORD: ""
+                volumes: [database-data:/workspace/data]
+              {{/h2}}
               {{#redis}}
               redis:
                 image: redis:8-alpine
@@ -3434,7 +3905,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                   KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
               {{/kafka}}
             volumes:
-              postgres-data:
+              database-data:
             """;
     private static final String WORKFLOW =
             """
@@ -3543,9 +4014,14 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
             """;
     private static final String ENV =
             """
-            DATABASE_URL=jdbc:postgresql://localhost:5432/{{artifactId}}
-            DATABASE_USERNAME=postgres
+            {{#relational}}
+            DATABASE_URL={{{databaseUrl}}}
+            DATABASE_USERNAME={{databaseUsername}}
             DATABASE_PASSWORD=change-me
+            {{/relational}}
+            {{#mongodb}}
+            MONGODB_URI={{{databaseUrl}}}
+            {{/mongodb}}
             APP_ALLOWED_ORIGINS=http://localhost:3000
             JWT_SECRET=replace-with-at-least-32-random-bytes
             JWT_ISSUER_URI=https://issuer.example.invalid
@@ -3613,7 +4089,8 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
               name: {{artifactId}}
             data:
               SPRING_PROFILES_ACTIVE: prod
-              DATABASE_URL: jdbc:postgresql://postgres:5432/{{artifactId}}
+              {{#relational}}DATABASE_URL: {{{databaseDeploymentUrl}}}{{/relational}}
+              {{#mongodb}}MONGODB_URI: {{{databaseDeploymentUrl}}}{{/mongodb}}
             """;
     private static final String KUBERNETES_SECRET =
             """

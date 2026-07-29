@@ -12,4 +12,4 @@ Run `backsmith <command> --help` for authoritative options.
 
 Applicable commands support `--project`, `--dry-run`, `--force`, `--skip-existing`, `--tests`, `--json`, `--quiet`, and `--verbose`.
 
-Create supports all seven architectures and feature selectors for security, messaging, cache, observability, tenancy, deployment, starter modules, and individual resilience policies. Use `backsmith create --help` for the complete current option set.
+Create supports all seven architectures; `postgresql`, `mysql`, `mariadb`, `sqlserver`, `oracle`, `h2`, and `mongodb` database targets; and feature selectors for security, messaging, cache, observability, tenancy, deployment, starter modules, and individual resilience policies. Use `backsmith create --help` for the complete current option set.

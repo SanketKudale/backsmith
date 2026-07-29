@@ -134,7 +134,44 @@ public record ProjectConfiguration(
             String observability,
             boolean openapi,
             boolean docker,
-            boolean tests) {}
+            boolean tests) {
+        private static final Set<String> DATABASES =
+                Set.of("postgresql", "mysql", "mariadb", "sqlserver", "oracle", "h2", "mongodb");
+
+        public Features {
+            database = normalized(database);
+            persistence = normalized(persistence);
+            migrations = normalized(migrations);
+            if (!DATABASES.contains(database)) {
+                throw new IllegalArgumentException(
+                        "features.database: supported values are "
+                                + String.join(", ", DATABASES.stream().sorted().toList()));
+            }
+            if (database.equals("mongodb")) {
+                if (!persistence.equals("mongodb")) {
+                    throw new IllegalArgumentException(
+                            "features.persistence: mongodb requires mongodb persistence");
+                }
+                if (!migrations.equals("none")) {
+                    throw new IllegalArgumentException(
+                            "features.migrations: mongodb uses none; Flyway is for relational databases");
+                }
+            } else {
+                if (!persistence.equals("jpa")) {
+                    throw new IllegalArgumentException(
+                            "features.persistence: relational databases require jpa");
+                }
+                if (!migrations.equals("flyway")) {
+                    throw new IllegalArgumentException(
+                            "features.migrations: relational databases require flyway");
+                }
+            }
+        }
+
+        private static String normalized(String value) {
+            return value == null ? "" : value.toLowerCase(java.util.Locale.ROOT);
+        }
+    }
 
     public record ApiConfiguration(
             String style,

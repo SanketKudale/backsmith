@@ -21,7 +21,9 @@ This checklist is intentionally conservative. Checked items are implemented in 1
 - [x] Spring adapter boundary
 - [x] layered starter project
 - [x] hexagonal starter project
-- [x] PostgreSQL, JPA, Flyway, OpenAPI, Docker, health configuration
+- [x] PostgreSQL, MySQL, MariaDB, SQL Server, Oracle, and H2 with JPA/Flyway
+- [x] MongoDB with Spring Data MongoDB and document scaffolding
+- [x] Database-specific drivers, SQL types, Compose services, and integration tests
 - [x] generated Maven wrapper and CI workflow
 - [x] security modes, Problem Details, correlation IDs, audit hooks, and generated Testcontainers tests
 

@@ -10,7 +10,7 @@ runtime:
   language: java
   java_version: 21
   framework: spring
-  framework_version: "3.5.4"
+  framework_version: "3.5.16"
   build_tool: maven
 architecture:
   type: HEXAGONAL

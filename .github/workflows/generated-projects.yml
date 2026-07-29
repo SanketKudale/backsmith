@@ -9,6 +9,42 @@ permissions:
   contents: read
 
 jobs:
+  database:
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [postgresql, mysql, mariadb, sqlserver, oracle, h2, mongodb]
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Build Backsmith
+        run: |
+          chmod +x mvnw
+          ./mvnw -B -ntp -DskipTests package
+      - name: Generate and verify database
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/database-${{ matrix.database }}"
+          java -jar backsmith-cli/target/backsmith.jar create "sample-${{ matrix.database }}" \
+            --project "$output" \
+            --database "${{ matrix.database }}" \
+            --yes \
+            --quiet
+          project="$output/sample-${{ matrix.database }}"
+          chmod +x "$project/mvnw"
+          (
+            cd "$project"
+            ./mvnw -B -ntp verify
+            docker compose config --quiet
+          )
+
   security-mode:
     strategy:
       fail-fast: false

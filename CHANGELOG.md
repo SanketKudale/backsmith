@@ -14,11 +14,13 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/) and S
 - Kafka event envelopes, transactional outbox retries and dead state, idempotent consumers, Redis cache, Resilience4j policies, metrics, tracing, structured logs, and Kubernetes resources.
 - Generated Testcontainers and ArchUnit tests, code quality gates, dependency convergence, CodeQL, dependency review, and a seven-architecture CI matrix.
 - Optional signed Maven Central publication in the release workflow.
+- PostgreSQL, MySQL, MariaDB, SQL Server, Oracle, H2, and MongoDB project generation with database-specific dependencies, configuration, persistence scaffolding, Compose services, and integration tests.
 
 ### Changed
 
 - `diff`, `validate`, `doctor`, and `upgrade-config` now perform real project-aware diagnostics and migrations.
 - Spring generation targets Java 21 and Spring Boot 3.5.16.
+- Relational SQL and idempotency/outbox persistence are portable across the supported SQL engines; MongoDB projects use Spring Data MongoDB without Flyway.
 
 ### Security
 
