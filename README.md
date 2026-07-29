@@ -31,6 +31,37 @@ java -jar backsmith-cli/target/backsmith.jar doctor
 
 On Windows, use `mvnw.cmd`.
 
+## Install a release
+
+Backsmith releases are free public downloads. Java 21 or newer is the only runtime prerequisite.
+
+macOS and Linux:
+
+```shell
+curl -fsSL https://github.com/SanketKudale/backsmith/releases/latest/download/install.sh | sh
+```
+
+Windows PowerShell:
+
+```powershell
+irm https://github.com/SanketKudale/backsmith/releases/latest/download/install.ps1 | iex
+```
+
+The installers download the platform-neutral archive from GitHub Releases and verify its SHA-256 checksum before installation. If you prefer a manual installation, download `backsmith.zip` or `backsmith.tar.gz` from the [latest release](https://github.com/SanketKudale/backsmith/releases/latest), verify it against `SHA256SUMS`, and add its `bin` directory to `PATH`.
+
+Release archives work on Windows, macOS, and Linux. They include:
+
+```text
+backsmith-<version>/
+├── bin/
+│   ├── backsmith
+│   └── backsmith.cmd
+├── lib/backsmith.jar
+├── README.md
+├── CHANGELOG.md
+└── LICENSE
+```
+
 ## Quick start
 
 ```shell
@@ -83,6 +114,8 @@ In 0.1.0, component commands create deterministic typed scaffolds. Domain-specif
 ```
 
 See [architecture](docs/architecture.md), [framework adapters](docs/framework-adapters.md), and [contributing](CONTRIBUTING.md).
+
+Maintainers publish a version by pushing a semantic version tag matching the Maven project version. The release workflow performs a clean verification build, creates universal archives, calculates checksums, and publishes or repairs the corresponding GitHub Release.
 
 ## License
 
