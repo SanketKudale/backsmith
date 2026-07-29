@@ -1,0 +1,9 @@
+{
+  "catalogs": {},
+  "aliases": {
+    "backsmith": {
+      "script-ref": "https://github.com/SanketKudale/backsmith/releases/latest/download/backsmith.jar",
+      "description": "Deterministic and conflict-aware Spring Boot backend generator"
+    }
+  }
+}

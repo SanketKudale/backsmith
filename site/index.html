@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Backsmith — Forge safer Spring Boot backends</title>
+    <meta name="description" content="Backsmith is a free, open-source Java 21 CLI for deterministic, conflict-aware Spring Boot backend generation.">
+    <meta name="theme-color" content="#081421">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Backsmith — Forge safer backends">
+    <meta property="og:description" content="A deterministic, conflict-aware Java CLI for generating Spring Boot backends.">
+    <meta property="og:url" content="https://sanketkudale.github.io/backsmith/">
+    <meta property="og:image" content="https://sanketkudale.github.io/backsmith/assets/backsmith-hero.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="canonical" href="https://sanketkudale.github.io/backsmith/">
+    <link rel="stylesheet" href="styles.css">
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Backsmith",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Windows, macOS, Linux",
+        "softwareVersion": "0.1.2",
+        "license": "https://www.apache.org/licenses/LICENSE-2.0",
+        "url": "https://sanketkudale.github.io/backsmith/",
+        "downloadUrl": "https://github.com/SanketKudale/backsmith/releases/latest",
+        "codeRepository": "https://github.com/SanketKudale/backsmith",
+        "programmingLanguage": "Java"
+      }
+    </script>
+  </head>
+  <body>
+    <header class="nav-shell">
+      <nav aria-label="Primary navigation">
+        <a class="brand" href="#top"><span class="brand-mark">{●}</span> Backsmith</a>
+        <div class="nav-links">
+          <a href="#features">Features</a>
+          <a href="#install">Install</a>
+          <a href="#architecture">Architecture</a>
+          <a href="https://github.com/SanketKudale/backsmith">GitHub</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">OPEN-SOURCE BACKEND GENERATOR</p>
+          <h1>Forge safer backends.</h1>
+          <p class="lead">Backsmith is a deterministic, conflict-aware Java 21 CLI that turns backend architecture decisions into working Spring Boot projects.</p>
+          <div class="actions">
+            <a class="button primary" href="#install">Install Backsmith</a>
+            <a class="button secondary" href="https://github.com/SanketKudale/backsmith">View source</a>
+          </div>
+          <div class="trust-row">
+            <span>Apache-2.0</span><span>Java 21</span><span>Windows · macOS · Linux</span>
+          </div>
+        </div>
+        <img class="hero-art" src="assets/backsmith-hero.png" alt="Backsmith anvil connecting backend services, APIs, and databases">
+      </section>
+
+      <section class="demo section">
+        <div class="section-heading">
+          <p class="eyebrow">PLAN BEFORE WRITING</p>
+          <h2>See every change before it touches your project.</h2>
+        </div>
+        <img src="assets/backsmith-demo.gif" alt="Animated terminal demonstration of Backsmith dry-run, project creation, entity generation, and validation">
+      </section>
+
+      <section id="features" class="section">
+        <div class="section-heading">
+          <p class="eyebrow">BUILT FOR CONTROL</p>
+          <h2>Generation that respects your codebase.</h2>
+        </div>
+        <div class="grid features">
+          <article><span>01</span><h3>Two-phase generation</h3><p>Backsmith plans, hashes, sorts, and validates every operation before applying it.</p></article>
+          <article><span>02</span><h3>Conflict-safe by default</h3><p>Different existing files become explicit conflicts. Nothing is silently overwritten.</p></article>
+          <article><span>03</span><h3>Architecture-aware</h3><p>Generate layered or hexagonal Spring Boot starters without leaking framework concerns into the core.</p></article>
+          <article><span>04</span><h3>Production foundations</h3><p>PostgreSQL, Flyway, JPA, OpenAPI, Actuator, Docker Compose, and CI are wired into generated projects.</p></article>
+          <article><span>05</span><h3>Portable automation</h3><p>Machine-readable JSON, stable exit codes, deterministic output, and cross-platform paths.</p></article>
+          <article><span>06</span><h3>Open extension model</h3><p>Framework adapters isolate generation logic so future stacks can plug in without weakening safety.</p></article>
+        </div>
+      </section>
+
+      <section id="install" class="section install">
+        <div class="section-heading">
+          <p class="eyebrow">FREE TO USE</p>
+          <h2>Install Backsmith.</h2>
+          <p>Java 21 or newer is the only runtime prerequisite. Every archive is published with SHA-256 checksums.</p>
+        </div>
+        <div class="install-grid">
+          <article>
+            <h3>macOS / Linux</h3>
+            <pre><code>curl -fsSL https://github.com/SanketKudale/backsmith/releases/latest/download/install.sh | sh</code></pre>
+          </article>
+          <article>
+            <h3>Windows PowerShell</h3>
+            <pre><code>irm https://github.com/SanketKudale/backsmith/releases/latest/download/install.ps1 | iex</code></pre>
+          </article>
+          <article>
+            <h3>Homebrew</h3>
+            <pre><code>brew install SanketKudale/tap/backsmith</code></pre>
+          </article>
+          <article>
+            <h3>Scoop</h3>
+            <pre><code>scoop bucket add sanketkudale https://github.com/SanketKudale/scoop-bucket
+scoop install sanketkudale/backsmith</code></pre>
+          </article>
+          <article>
+            <h3>JBang</h3>
+            <pre><code>jbang app install backsmith@SanketKudale</code></pre>
+          </article>
+          <article>
+            <h3>Manual download</h3>
+            <p><a href="https://github.com/SanketKudale/backsmith/releases/latest">Download the executable JAR, ZIP, or TAR.GZ release.</a></p>
+          </article>
+        </div>
+      </section>
+
+      <section id="architecture" class="section architecture">
+        <div class="section-heading">
+          <p class="eyebrow">INITIAL SUPPORT</p>
+          <h2>Java and Spring Boot, done honestly.</h2>
+        </div>
+        <div class="architecture-flow" role="img" aria-label="Backsmith CLI passes immutable configuration into safe core planning, then the Spring adapter and template renderer">
+          <span>CLI</span><b>→</b><span>Immutable config</span><b>→</b><span>Safe plan/apply core</span><b>→</b><span>Spring adapter</span><b>→</b><span>Working project</span>
+        </div>
+        <p class="center-note">Backsmith is pre-1.0. Unsupported roadmap capabilities are documented instead of represented by fake adapters.</p>
+      </section>
+
+      <section class="cta">
+        <p class="eyebrow">CRAFT THE NEXT BACKEND</p>
+        <h2>Start with a plan you can inspect.</h2>
+        <a class="button primary" href="https://github.com/SanketKudale/backsmith">Star Backsmith on GitHub</a>
+      </section>
+    </main>
+
+    <footer>
+      <span>Backsmith · Apache-2.0</span>
+      <span><a href="https://github.com/SanketKudale/backsmith/issues">Issues</a> · <a href="https://github.com/SanketKudale/backsmith/releases">Releases</a></span>
+    </footer>
+  </body>
+</html>

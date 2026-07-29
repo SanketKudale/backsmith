@@ -2,6 +2,15 @@
 
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/) and Semantic Versioning.
 
+## [0.1.2] - 2026-07-29
+
+### Added
+
+- Public project website and search/social metadata.
+- Homebrew, Scoop, and JBang distribution catalogs with automated updates.
+- Installation, support, issue, pull request, launch, and SDKMAN onboarding documentation.
+- Complete Apache License 2.0 text, NOTICE file, citation metadata, and branded project assets.
+
 ## [0.1.1] - 2026-07-29
 
 ### Fixed
