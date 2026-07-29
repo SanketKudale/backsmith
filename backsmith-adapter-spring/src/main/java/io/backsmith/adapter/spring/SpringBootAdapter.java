@@ -1830,9 +1830,9 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                     account.email = normalized;
                     account.passwordHash = passwords.encode(new String(password));
                     account.enabled = true;
-                    account.roles = Set.of(Role.USER);
-                    account.tenants =
-                            Set.of(tenantId == null || tenantId.isBlank() ? "default" : tenantId);
+                    account.roles = new HashSet<>(Set.of(Role.USER));
+                    account.tenants = new HashSet<>(
+                            Set.of(tenantId == null || tenantId.isBlank() ? "default" : tenantId));
                     account.createdAt = clock.instant();
                     account.updatedAt = account.createdAt;
                     accounts.save(account);
@@ -1957,11 +1957,11 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                 @CollectionTable(name = "account_role", joinColumns = @JoinColumn(name = "account_id"))
                 @Enumerated(EnumType.STRING)
                 @Column(name = "role", nullable = false)
-                Set<Role> roles = Set.of();
+                Set<Role> roles = new HashSet<>();
                 @ElementCollection(fetch = FetchType.EAGER)
                 @CollectionTable(name = "account_tenant", joinColumns = @JoinColumn(name = "account_id"))
                 @Column(name = "tenant_id", nullable = false, length = 64)
-                Set<String> tenants = Set.of();
+                Set<String> tenants = new HashSet<>();
                 @Column(name = "created_at", nullable = false) Instant createdAt;
                 @Column(name = "updated_at", nullable = false) Instant updatedAt;
                 @Version long version;
