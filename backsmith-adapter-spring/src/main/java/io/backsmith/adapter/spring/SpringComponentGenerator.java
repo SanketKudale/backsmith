@@ -1118,7 +1118,7 @@ public final class SpringComponentGenerator {
                             RestClient.Builder builder,
                             MeterRegistry metrics,
                             ObjectProvider<IntegrationAuthentication> authentication,
-                            @Value("${integrations.%s.base-url}") String baseUrl,
+                            @Value("${integrations.%s.base-url:http://localhost:8081}") String baseUrl,
                             @Value("${integrations.%s.connect-timeout:PT2S}") Duration connectTimeout,
                             @Value("${integrations.%s.read-timeout:PT3S}") Duration readTimeout) {
                         var requests = new SimpleClientHttpRequestFactory();
