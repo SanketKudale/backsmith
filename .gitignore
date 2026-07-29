@@ -1,0 +1,8 @@
+target/
+.idea/
+.vscode/
+*.iml
+.DS_Store
+*.log
+.mvn/apache-maven-*/
+.backsmith-tmp/

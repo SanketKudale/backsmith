@@ -1,0 +1,30 @@
+schema_version: 1
+project:
+  name: payment-service
+  group_id: com.example
+  artifact_id: payment-service
+  base_package: com.example.payment
+  version: 0.1.0-SNAPSHOT
+  description: Payment processing service
+runtime:
+  language: java
+  java_version: 21
+  framework: spring
+  framework_version: "3.5.4"
+  build_tool: maven
+architecture:
+  type: HEXAGONAL
+  enforce_boundaries: true
+features:
+  database: postgresql
+  persistence: jpa
+  migrations: flyway
+  security: none
+  messaging: none
+  cache: none
+  observability: standard
+  openapi: true
+  docker: true
+  tests: true
+modules:
+  - payment
