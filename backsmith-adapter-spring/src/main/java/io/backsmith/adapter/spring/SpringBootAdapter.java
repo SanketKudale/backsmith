@@ -50,7 +50,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                 Set.of("none", "basic", "session", "jwt", "oauth2", "oidc"),
                 Set.of("none", "kafka"),
                 Set.of("none", "redis"),
-                Set.of("docker", "docker-compose", "kubernetes"));
+                Set.of("docker", "docker-compose", "kubernetes", "api-gateway"));
     }
 
     @Override
@@ -102,7 +102,14 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
         values.put("testJdbcUrl", projectValue(database.testJdbcUrl(), project.artifactId()));
         values.put("testDatabaseUsername", database.testUsername());
         values.put("testDatabasePassword", database.testPassword());
-        values.put("securityEnabled", !configuration.security().mode().equalsIgnoreCase("none"));
+        values.put(
+                "securityEnabled",
+                !configuration.security().mode().equalsIgnoreCase("none")
+                        || configuration.apiGateway().enabled());
+        values.put(
+                "gatewayOnlySecurity",
+                configuration.apiGateway().enabled()
+                        && configuration.security().mode().equalsIgnoreCase("none"));
         values.put("sessionSecurity", configuration.security().mode().equalsIgnoreCase("session"));
         values.put(
                 "resourceServer",
@@ -128,6 +135,25 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
         values.put("architectureTests", configuration.testing().architecture());
         values.put("failOnWarning", configuration.generation().failOnWarning());
         values.put("kubernetes", configuration.deployment().kubernetes());
+        values.put("apiGateway", configuration.apiGateway().enabled());
+        values.put(
+                "gatewayRateLimiting",
+                configuration.apiGateway().enabled() && configuration.apiGateway().rateLimiting());
+        values.put("gatewayRoute", configuration.apiGateway().routePath());
+        values.put("gatewayUpstream", configuration.apiGateway().upstreamUri());
+        values.put("gatewayStripPrefix", configuration.apiGateway().stripPrefix());
+        values.put(
+                "gatewayRequiresAuthentication",
+                configuration.apiGateway().enabled()
+                        && configuration.apiGateway().requireAuthentication());
+        values.put(
+                "gatewayPublic",
+                configuration.apiGateway().enabled()
+                        && !configuration.apiGateway().requireAuthentication());
+        values.put("gatewayRequestsPerMinute", configuration.apiGateway().requestsPerMinute());
+        values.put("gatewayMaxRequestBytes", configuration.apiGateway().maxRequestBytes());
+        values.put("gatewayMaxHeaderBytes", configuration.apiGateway().maxHeaderBytes());
+        values.put("gatewayTrustedProxies", configuration.apiGateway().trustedProxies());
         values.put("multiTenancy", !configuration.multiTenancy().mode().equalsIgnoreCase("none"));
         values.put("starterAuth", configuration.modules().contains("authentication"));
         values.put("idempotency", configuration.api().idempotency() && database.relational());
@@ -210,6 +236,33 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                     files,
                     "src/main/java/{{packagePath}}/shared/security/SecurityConfiguration.java",
                     SECURITY_CONFIGURATION,
+                    values);
+        }
+        if ((boolean) values.get("apiGateway")) {
+            put(
+                    files,
+                    "src/main/java/{{packagePath}}/shared/gateway/ApiGatewayConfiguration.java",
+                    API_GATEWAY_CONFIGURATION,
+                    values);
+            put(
+                    files,
+                    "src/main/java/{{packagePath}}/shared/gateway/GatewayProperties.java",
+                    GATEWAY_PROPERTIES,
+                    values);
+            put(
+                    files,
+                    "src/main/java/{{packagePath}}/shared/gateway/GatewaySecurityHeadersFilter.java",
+                    GATEWAY_SECURITY_HEADERS_FILTER,
+                    values);
+            put(
+                    files,
+                    "src/test/java/{{packagePath}}/shared/gateway/GatewayPropertiesTest.java",
+                    GATEWAY_PROPERTIES_TEST,
+                    values);
+            put(
+                    files,
+                    "src/test/java/{{packagePath}}/shared/gateway/GatewaySecurityHeadersFilterTest.java",
+                    GATEWAY_SECURITY_HEADERS_FILTER_TEST,
                     values);
         }
         if ((boolean) values.get("starterAuth")) {
@@ -719,7 +772,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
             Map<String, Object> values) {
         files.put(
                 Path.of(renderer.render(pathTemplate, values).trim()),
-                renderer.render(template, values));
+                renderer.render(template, values).replaceAll("(?m)[\\t ]+$", ""));
     }
 
     private String configurationYaml(ProjectConfiguration configuration) {
@@ -744,11 +797,43 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                 <maven.compiler.showWarnings>true</maven.compiler.showWarnings>
                 <maven.compiler.failOnWarning>{{failOnWarning}}</maven.compiler.failOnWarning>
                 <project.build.outputTimestamp>2026-07-29T00:00:00Z</project.build.outputTimestamp>
+                {{#apiGateway}}
+                <spring-cloud.version>2025.0.3</spring-cloud.version>
+                {{/apiGateway}}
               </properties>
+              {{#apiGateway}}
+              <dependencyManagement>
+                <dependencies>
+                  {{#resilience}}
+                  <dependency>
+                    <groupId>io.github.resilience4j</groupId>
+                    <artifactId>resilience4j-bom</artifactId>
+                    <version>2.4.0</version>
+                    <type>pom</type>
+                    <scope>import</scope>
+                  </dependency>
+                  {{/resilience}}
+                  <dependency>
+                    <groupId>org.springframework.cloud</groupId>
+                    <artifactId>spring-cloud-dependencies</artifactId>
+                    <version>${spring-cloud.version}</version>
+                    <type>pom</type>
+                    <scope>import</scope>
+                  </dependency>
+                </dependencies>
+              </dependencyManagement>
+              {{/apiGateway}}
               <dependencies>
                 <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
                 <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-validation</artifactId></dependency>
                 <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-actuator</artifactId></dependency>
+                {{#apiGateway}}
+                <dependency><groupId>org.springframework.cloud</groupId><artifactId>spring-cloud-starter-gateway-server-webmvc</artifactId></dependency>
+                {{/apiGateway}}
+                {{#gatewayRateLimiting}}
+                <dependency><groupId>com.bucket4j</groupId><artifactId>bucket4j_jdk17-caffeine</artifactId><version>8.14.0</version></dependency>
+                <dependency><groupId>com.github.ben-manes.caffeine</groupId><artifactId>caffeine</artifactId></dependency>
+                {{/gatewayRateLimiting}}
                 {{#relational}}
                 <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-data-jpa</artifactId></dependency>
                 <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-core</artifactId></dependency>
@@ -895,6 +980,13 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
             spring:
               application:
                 name: {{name}}
+              {{#apiGateway}}
+              cloud:
+                gateway:
+                  server:
+                    webmvc:
+                      trusted-proxies: '${GATEWAY_TRUSTED_PROXIES:{{gatewayTrustedProxies}}}'
+              {{/apiGateway}}
               {{#relational}}
               datasource:
                 url: ${DATABASE_URL:{{{databaseUrl}}}}
@@ -966,6 +1058,16 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                 access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT15M}
                 refresh-token-ttl: ${JWT_REFRESH_TOKEN_TTL:P30D}
             {{/localJwt}}
+            {{#apiGateway}}
+            backsmith:
+              gateway:
+                upstream-uri: ${GATEWAY_UPSTREAM_URI:{{{gatewayUpstream}}}}
+                route-path: '${GATEWAY_ROUTE_PATH:{{gatewayRoute}}}'
+                strip-prefix: ${GATEWAY_STRIP_PREFIX:{{gatewayStripPrefix}}}
+                requests-per-minute: ${GATEWAY_REQUESTS_PER_MINUTE:{{gatewayRequestsPerMinute}}}
+                max-request-size: ${GATEWAY_MAX_REQUEST_SIZE:{{gatewayMaxRequestBytes}}B}
+                max-header-size: ${GATEWAY_MAX_HEADER_SIZE:{{gatewayMaxHeaderBytes}}B}
+            {{/apiGateway}}
             server:
               shutdown: graceful
             {{#structuredLogging}}
@@ -1771,7 +1873,9 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                         .authorizeHttpRequests(authorize -> authorize
                             .requestMatchers("/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
                                     "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
-                            .anyRequest().authenticated());
+                            {{#gatewayPublic}}.requestMatchers("{{gatewayRoute}}").permitAll(){{/gatewayPublic}}
+                            {{#gatewayOnlySecurity}}.anyRequest().permitAll());{{/gatewayOnlySecurity}}
+                            {{^gatewayOnlySecurity}}.anyRequest().authenticated());{{/gatewayOnlySecurity}}
                     {{#resourceServer}}
                     http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                         .csrf(csrf -> csrf.disable())
@@ -1779,6 +1883,11 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                             .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
                     {{/resourceServer}}
                     {{^resourceServer}}
+                    {{#gatewayOnlySecurity}}
+                    http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                        .csrf(csrf -> csrf.disable());
+                    {{/gatewayOnlySecurity}}
+                    {{^gatewayOnlySecurity}}
                     {{#sessionSecurity}}
                     http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                         .csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))
@@ -1789,6 +1898,7 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                         .csrf(csrf -> csrf.disable())
                         .httpBasic(Customizer.withDefaults());
                     {{/sessionSecurity}}
+                    {{/gatewayOnlySecurity}}
                     {{/resourceServer}}
                     return http.build();
                 }
@@ -1871,7 +1981,298 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
                     configuration.setAllowCredentials(true);
                     var source = new UrlBasedCorsConfigurationSource();
                     source.registerCorsConfiguration("/api/**", configuration);
+                    {{#apiGateway}}source.registerCorsConfiguration("{{gatewayRoute}}", configuration);{{/apiGateway}}
                     return source;
+                }
+            }
+            """;
+    private static final String API_GATEWAY_CONFIGURATION =
+            """
+            package {{basePackage}}.shared.gateway;
+
+            import static org.springframework.cloud.gateway.server.mvc.filter.BeforeFilterFunctions.removeRequestHeader;
+            import static org.springframework.cloud.gateway.server.mvc.filter.BeforeFilterFunctions.requestHeaderSize;
+            import static org.springframework.cloud.gateway.server.mvc.filter.BeforeFilterFunctions.requestSize;
+            {{#gatewayStripPrefix}}
+            import static org.springframework.cloud.gateway.server.mvc.filter.BeforeFilterFunctions.stripPrefix;
+            {{/gatewayStripPrefix}}
+            import static org.springframework.cloud.gateway.server.mvc.filter.BeforeFilterFunctions.uri;
+            {{#gatewayRateLimiting}}
+            import static org.springframework.cloud.gateway.server.mvc.filter.Bucket4jFilterFunctions.rateLimit;
+            {{/gatewayRateLimiting}}
+            import static org.springframework.cloud.gateway.server.mvc.handler.GatewayRouterFunctions.route;
+            import static org.springframework.cloud.gateway.server.mvc.handler.HandlerFunctions.http;
+            import static org.springframework.web.servlet.function.RequestPredicates.path;
+
+            {{#gatewayRateLimiting}}
+            import com.github.benmanes.caffeine.cache.Caffeine;
+            import io.github.bucket4j.caffeine.CaffeineProxyManager;
+            import io.github.bucket4j.distributed.proxy.AsyncProxyManager;
+            import io.github.bucket4j.distributed.remote.RemoteBucketState;
+            import java.security.Principal;
+            import java.time.Duration;
+            {{/gatewayRateLimiting}}
+            import org.springframework.context.annotation.Bean;
+            import org.springframework.context.annotation.Configuration;
+            import org.springframework.web.servlet.function.RouterFunction;
+            {{#gatewayRateLimiting}}
+            import org.springframework.web.servlet.function.ServerRequest;
+            {{/gatewayRateLimiting}}
+            import org.springframework.web.servlet.function.ServerResponse;
+
+            @Configuration(proxyBeanMethods = false)
+            public class ApiGatewayConfiguration {
+                {{#gatewayRateLimiting}}
+                @Bean
+                @SuppressWarnings({"rawtypes", "unchecked"})
+                AsyncProxyManager<String> gatewayRateLimitProxyManager() {
+                    Caffeine<String, RemoteBucketState> cache =
+                            (Caffeine) Caffeine.newBuilder().maximumSize(100_000);
+                    return new CaffeineProxyManager<>(cache, Duration.ofMinutes(1)).asAsync();
+                }
+                {{/gatewayRateLimiting}}
+
+                @Bean
+                RouterFunction<ServerResponse> apiGatewayRoutes(GatewayProperties properties) {
+                    return route("backsmith-api-gateway")
+                            .route(path(properties.routePath()), http())
+                            .before(uri(properties.upstreamUri().toString()))
+                            {{#gatewayStripPrefix}}.before(stripPrefix(1)){{/gatewayStripPrefix}}
+                            .before(requestHeaderSize(properties.maxHeaderSize().toBytes() + "B"))
+                            .before(requestSize(properties.maxRequestSize().toBytes() + "B"))
+                            .before(removeRequestHeader("Cookie"))
+                            {{#gatewayRateLimiting}}.filter(rateLimit(rate -> rate
+                                    .setCapacity(properties.requestsPerMinute())
+                                    .setPeriod(Duration.ofMinutes(1))
+                                    .setKeyResolver(this::rateLimitKey))){{/gatewayRateLimiting}}
+                            .build();
+                }
+
+                {{#gatewayRateLimiting}}
+                private String rateLimitKey(ServerRequest request) {
+                    Principal principal = request.servletRequest().getUserPrincipal();
+                    if (principal != null && principal.getName() != null) {
+                        return "principal:" + principal.getName();
+                    }
+                    return "ip:" + request.servletRequest().getRemoteAddr();
+                }
+                {{/gatewayRateLimiting}}
+            }
+            """;
+    private static final String GATEWAY_PROPERTIES =
+            """
+            package {{basePackage}}.shared.gateway;
+
+            import java.net.URI;
+            import org.springframework.boot.context.properties.ConfigurationProperties;
+            import org.springframework.util.unit.DataSize;
+
+            @ConfigurationProperties("backsmith.gateway")
+            public record GatewayProperties(
+                    URI upstreamUri,
+                    String routePath,
+                    boolean stripPrefix,
+                    int requestsPerMinute,
+                    DataSize maxRequestSize,
+                    DataSize maxHeaderSize) {
+                public GatewayProperties {
+                    if (upstreamUri == null
+                            || upstreamUri.getHost() == null
+                            || !java.util.Set.of("http", "https").contains(
+                                    upstreamUri.getScheme() == null
+                                            ? ""
+                                            : upstreamUri.getScheme().toLowerCase(java.util.Locale.ROOT))
+                            || upstreamUri.getUserInfo() != null
+                            || upstreamUri.getQuery() != null
+                            || upstreamUri.getFragment() != null) {
+                        throw new IllegalArgumentException(
+                                "gateway upstream must be an HTTP(S) origin without credentials, query, or fragment");
+                    }
+                    if (routePath == null
+                            || !routePath.startsWith("/")
+                            || !routePath.endsWith("/**")
+                            || routePath.equals("/**")
+                            || routePath.contains(" ")
+                            || routePath.contains("{")) {
+                        throw new IllegalArgumentException(
+                                "gateway route must be an absolute path ending in /**");
+                    }
+                    if (requestsPerMinute < 1 || requestsPerMinute > 1_000_000) {
+                        throw new IllegalArgumentException(
+                                "gateway requests-per-minute must be between 1 and 1000000");
+                    }
+                    if (maxRequestSize == null
+                            || maxRequestSize.toBytes() <= 0
+                            || maxRequestSize.toBytes() > 107_374_182_400L) {
+                        throw new IllegalArgumentException(
+                                "gateway max-request-size must be between 1 byte and 100 GiB");
+                    }
+                    if (maxHeaderSize == null
+                            || maxHeaderSize.toBytes() <= 0
+                            || maxHeaderSize.toBytes() > 1_048_576) {
+                        throw new IllegalArgumentException(
+                                "gateway max-header-size must be between 1 byte and 1 MiB");
+                    }
+                }
+
+                public String routePrefix() {
+                    return routePath.substring(0, routePath.length() - 3);
+                }
+            }
+            """;
+    private static final String GATEWAY_SECURITY_HEADERS_FILTER =
+            """
+            package {{basePackage}}.shared.gateway;
+
+            import jakarta.servlet.FilterChain;
+            import jakarta.servlet.ServletException;
+            import jakarta.servlet.http.HttpServletRequest;
+            import jakarta.servlet.http.HttpServletResponse;
+            import java.io.IOException;
+            import org.springframework.core.Ordered;
+            import org.springframework.core.annotation.Order;
+            import org.springframework.stereotype.Component;
+            import org.springframework.web.filter.OncePerRequestFilter;
+
+            @Component
+            @Order(Ordered.HIGHEST_PRECEDENCE + 20)
+            public final class GatewaySecurityHeadersFilter extends OncePerRequestFilter {
+                private final GatewayProperties properties;
+
+                public GatewaySecurityHeadersFilter(GatewayProperties properties) {
+                    this.properties = properties;
+                }
+
+                @Override
+                protected boolean shouldNotFilter(HttpServletRequest request) {
+                    return !request.getRequestURI().startsWith(properties.routePrefix());
+                }
+
+                @Override
+                protected void doFilterInternal(
+                        HttpServletRequest request,
+                        HttpServletResponse response,
+                        FilterChain chain)
+                        throws ServletException, IOException {
+                    response.setHeader("X-Content-Type-Options", "nosniff");
+                    response.setHeader("X-Frame-Options", "DENY");
+                    response.setHeader("Referrer-Policy", "no-referrer");
+                    response.setHeader("X-Permitted-Cross-Domain-Policies", "none");
+                    response.setHeader("Cross-Origin-Resource-Policy", "same-site");
+                    response.setHeader(
+                            "Permissions-Policy",
+                            "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
+                    response.setHeader(
+                            "Content-Security-Policy",
+                            "default-src 'none'; frame-ancestors 'none'; base-uri 'none'");
+                    if (request.isSecure()) {
+                        response.setHeader(
+                                "Strict-Transport-Security",
+                                "max-age=31536000; includeSubDomains");
+                    }
+                    chain.doFilter(request, response);
+                }
+            }
+            """;
+    private static final String GATEWAY_PROPERTIES_TEST =
+            """
+            package {{basePackage}}.shared.gateway;
+
+            import static org.junit.jupiter.api.Assertions.assertEquals;
+            import static org.junit.jupiter.api.Assertions.assertThrows;
+
+            import java.net.URI;
+            import org.junit.jupiter.api.Test;
+            import org.springframework.util.unit.DataSize;
+
+            class GatewayPropertiesTest {
+                @Test
+                void acceptsAConstrainedHttpRoute() {
+                    var properties = new GatewayProperties(
+                            URI.create("http://orders:8080"),
+                            "/gateway/**",
+                            true,
+                            120,
+                            DataSize.ofMegabytes(10),
+                            DataSize.ofKilobytes(16));
+
+                    assertEquals("/gateway", properties.routePrefix());
+                }
+
+                @Test
+                void rejectsUnsafeUpstreamCredentials() {
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> new GatewayProperties(
+                                    URI.create("https://user:secret@example.com"),
+                                    "/gateway/**",
+                                    true,
+                                    120,
+                                    DataSize.ofMegabytes(10),
+                                    DataSize.ofKilobytes(16)));
+                }
+
+                @Test
+                void rejectsRoutesThatCanCaptureTheWholeApplication() {
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> new GatewayProperties(
+                                    URI.create("https://example.com"),
+                                    "/**",
+                                    true,
+                                    120,
+                                    DataSize.ofMegabytes(10),
+                                    DataSize.ofKilobytes(16)));
+                }
+            }
+            """;
+    private static final String GATEWAY_SECURITY_HEADERS_FILTER_TEST =
+            """
+            package {{basePackage}}.shared.gateway;
+
+            import static org.junit.jupiter.api.Assertions.assertEquals;
+            import static org.junit.jupiter.api.Assertions.assertNull;
+
+            import java.net.URI;
+            import org.junit.jupiter.api.Test;
+            import org.springframework.mock.web.MockFilterChain;
+            import org.springframework.mock.web.MockHttpServletRequest;
+            import org.springframework.mock.web.MockHttpServletResponse;
+            import org.springframework.util.unit.DataSize;
+
+            class GatewaySecurityHeadersFilterTest {
+                private final GatewaySecurityHeadersFilter filter =
+                        new GatewaySecurityHeadersFilter(new GatewayProperties(
+                                URI.create("http://orders:8080"),
+                                "/gateway/**",
+                                true,
+                                120,
+                                DataSize.ofMegabytes(10),
+                                DataSize.ofKilobytes(16)));
+
+                @Test
+                void addsApiSecurityHeadersToGatewayResponses() throws Exception {
+                    var request = new MockHttpServletRequest("GET", "/gateway/orders");
+                    request.setSecure(true);
+                    var response = new MockHttpServletResponse();
+
+                    filter.doFilter(request, response, new MockFilterChain());
+
+                    assertEquals("nosniff", response.getHeader("X-Content-Type-Options"));
+                    assertEquals("DENY", response.getHeader("X-Frame-Options"));
+                    assertEquals(
+                            "max-age=31536000; includeSubDomains",
+                            response.getHeader("Strict-Transport-Security"));
+                }
+
+                @Test
+                void leavesNonGatewayResponsesAlone() throws Exception {
+                    var request = new MockHttpServletRequest("GET", "/actuator/health");
+                    var response = new MockHttpServletResponse();
+
+                    filter.doFilter(request, response, new MockFilterChain());
+
+                    assertNull(response.getHeader("Content-Security-Policy"));
                 }
             }
             """;
@@ -4035,6 +4436,15 @@ public final class SpringBootAdapter implements BackendFrameworkAdapter {
             KAFKA_BOOTSTRAP_SERVERS=localhost:9092
             REDIS_HOST=localhost
             REDIS_PORT=6379
+            {{#apiGateway}}
+            GATEWAY_UPSTREAM_URI={{{gatewayUpstream}}}
+            GATEWAY_ROUTE_PATH={{gatewayRoute}}
+            GATEWAY_STRIP_PREFIX={{gatewayStripPrefix}}
+            GATEWAY_REQUESTS_PER_MINUTE={{gatewayRequestsPerMinute}}
+            GATEWAY_MAX_REQUEST_SIZE={{gatewayMaxRequestBytes}}B
+            GATEWAY_MAX_HEADER_SIZE={{gatewayMaxHeaderBytes}}B
+            GATEWAY_TRUSTED_PROXIES={{gatewayTrustedProxies}}
+            {{/apiGateway}}
             """;
     private static final String KUBERNETES_DEPLOYMENT =
             """

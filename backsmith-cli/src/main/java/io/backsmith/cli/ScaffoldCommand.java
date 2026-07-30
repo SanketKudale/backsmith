@@ -150,6 +150,7 @@ public final class ScaffoldCommand implements Callable<Integer> {
                 configuration.testing(),
                 configuration.generation(),
                 configuration.deployment(),
-                configuration.multiTenancy());
+                configuration.multiTenancy(),
+                configuration.apiGateway());
     }
 }

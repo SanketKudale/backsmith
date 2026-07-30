@@ -39,6 +39,7 @@
         <div class="nav-links">
           <a href="#features">Features</a>
           <a href="#databases">Databases</a>
+          <a href="#gateway">API Gateway</a>
           <a href="#install">Install</a>
           <a href="#architecture">Architecture</a>
           <a href="https://github.com/SanketKudale/backsmith">GitHub</a>
@@ -81,8 +82,8 @@
           <article><span>02</span><h3>Conflict-safe by default</h3><p>Different existing files become explicit conflicts. Nothing is silently overwritten.</p></article>
           <article><span>03</span><h3>Architecture-aware</h3><p>Generate layered, hexagonal, modular-monolith, clean, onion, CQRS, or microservice Spring Boot applications.</p></article>
           <article><span>04</span><h3>Seven databases</h3><p>Choose PostgreSQL, MySQL, MariaDB, SQL Server, Oracle, H2, or MongoDB with matching persistence, configuration, containers, and tests.</p></article>
-          <article><span>05</span><h3>Portable automation</h3><p>Machine-readable JSON, stable exit codes, deterministic output, and cross-platform paths.</p></article>
-          <article><span>06</span><h3>Open extension model</h3><p>Framework adapters isolate generation logic so future stacks can plug in without weakening safety.</p></article>
+          <article><span>05</span><h3>Secure API Gateway</h3><p>Add authenticated Spring Cloud routing, rate limiting, request limits, trusted proxies, CORS, and hardened response headers.</p></article>
+          <article><span>06</span><h3>Portable automation</h3><p>Machine-readable JSON, stable exit codes, deterministic output, and cross-platform paths.</p></article>
         </div>
       </section>
 
@@ -100,6 +101,21 @@
           <article><h3>Oracle</h3><p>Oracle JDBC, RAW UUIDs, timestamp-with-time-zone, Flyway, and Oracle Free containers.</p></article>
           <article><h3>H2 and MongoDB</h3><p>Explicit H2 projects for local use, or document-native MongoDB projects with repositories and container tests.</p></article>
         </div>
+      </section>
+
+      <section id="gateway" class="section">
+        <div class="section-heading">
+          <p class="eyebrow">CONTROL THE EDGE</p>
+          <h2>Generate a secured API gateway, not a naked proxy.</h2>
+          <p>Backsmith adds Spring Cloud Gateway Server MVC without forcing servlet and JPA applications onto a reactive stack. Authentication is enabled by default, while every limit and upstream remains explicit configuration.</p>
+        </div>
+        <div class="grid features">
+          <article><h3>Authenticated routing</h3><p>Use Basic, session, JWT, OAuth2, or OIDC security. Unauthenticated gateway routes require an explicit public option.</p></article>
+          <article><h3>Traffic protection</h3><p>Per-client token buckets, HTTP 429 responses, body and header limits, cookie stripping, and trusted-proxy processing.</p></article>
+          <article><h3>Security headers</h3><p>HSTS on HTTPS, CSP, anti-framing, MIME-sniffing, referrer, permissions, and cross-domain protections.</p></article>
+        </div>
+        <pre><code>backsmith create edge-service --api-gateway \
+  --gateway-upstream http://orders:8080 --yes</code></pre>
       </section>
 
       <section id="install" class="section install">

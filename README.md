@@ -41,6 +41,7 @@ Backsmith 1.0 is a free, open-source Java 21 CLI for deterministic, conflict-awa
 - PostgreSQL, MySQL, MariaDB, SQL Server, Oracle, H2, and MongoDB generation
 - JPA/Flyway for relational databases, Spring Data MongoDB for document persistence, validation, Problem Details, idempotency, and audit logging
 - basic, session, JWT, OAuth2/OIDC resource-server security, plus a persistent JWT authentication starter
+- Spring Cloud API Gateway MVC with authenticated routing, token-bucket rate limiting, request limits, trusted-proxy handling, CORS, and security headers
 - Kafka, transactional outbox, idempotent consumers, Redis, Resilience4j, metrics, tracing, and health probes
 - customer and payment starters, OpenAPI-driven APIs, and architecture-aware component scaffolding
 - Testcontainers, ArchUnit, Spotless, Checkstyle, JaCoCo, Docker Compose, Kubernetes, and pinned CI
@@ -118,6 +119,23 @@ Preview without writing:
 ```shell
 backsmith create payment-service --architecture hexagonal --dry-run --yes
 ```
+
+Generate a secured API gateway route:
+
+```shell
+backsmith create edge-service \
+  --architecture microservice \
+  --api-gateway \
+  --gateway-upstream http://orders:8080 \
+  --gateway-route '/gateway/**' \
+  --gateway-requests-per-minute 120 \
+  --yes
+```
+
+The gateway option selects JWT security when no security mode was supplied. Use
+`--gateway-public` only for routes that are intentionally unauthenticated. See the
+[API gateway guide](docs/api-gateway.md) for limits, proxy trust, deployment, and
+distributed-rate-limiter guidance.
 
 Add a managed component:
 

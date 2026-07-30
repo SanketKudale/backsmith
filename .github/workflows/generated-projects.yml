@@ -154,6 +154,8 @@ jobs:
             --timeout \
             --rate-limiter \
             --bulkhead \
+            --api-gateway \
+            --gateway-upstream http://orders:8080 \
             --yes \
             --quiet
           project="$output/production-service"
@@ -169,6 +171,6 @@ jobs:
           chmod +x "$project/mvnw"
           (
             cd "$project"
-            ./mvnw -B -ntp verify
+            JWT_SECRET=backsmith-ci-secret-at-least-32-bytes-long ./mvnw -B -ntp verify
             docker compose config --quiet
           )

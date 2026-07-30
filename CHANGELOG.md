@@ -15,6 +15,7 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/) and S
 - Generated Testcontainers and ArchUnit tests, code quality gates, dependency convergence, CodeQL, dependency review, and a seven-architecture CI matrix.
 - Optional signed Maven Central publication in the release workflow.
 - PostgreSQL, MySQL, MariaDB, SQL Server, Oracle, H2, and MongoDB project generation with database-specific dependencies, configuration, persistence scaffolding, Compose services, and integration tests.
+- Optional Spring Cloud Gateway Server MVC generation with secure upstream validation, authenticated routes, Bucket4j rate limiting, request and header limits, trusted-proxy configuration, cookie stripping, CORS, and hardened response headers.
 
 ### Changed
 
@@ -24,7 +25,7 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/) and S
 
 ### Security
 
-- Added environment-only secrets, RFC-style security errors, JWT issuer/audience validation, tenant membership enforcement, correlation IDs, request hashing, and safe external-integration errors.
+- Added environment-only secrets, RFC-style security errors, JWT issuer/audience validation, tenant membership enforcement, correlation IDs, request hashing, safe external-integration errors, and gateway edge protections.
 
 ## [0.1.2] - 2026-07-29
 

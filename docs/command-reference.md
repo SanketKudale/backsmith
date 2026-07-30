@@ -12,4 +12,6 @@ Run `backsmith <command> --help` for authoritative options.
 
 Applicable commands support `--project`, `--dry-run`, `--force`, `--skip-existing`, `--tests`, `--json`, `--quiet`, and `--verbose`.
 
-Create supports all seven architectures; `postgresql`, `mysql`, `mariadb`, `sqlserver`, `oracle`, `h2`, and `mongodb` database targets; and feature selectors for security, messaging, cache, observability, tenancy, deployment, starter modules, and individual resilience policies. Use `backsmith create --help` for the complete current option set.
+Create supports all seven architectures; `postgresql`, `mysql`, `mariadb`, `sqlserver`, `oracle`, `h2`, and `mongodb` database targets; and feature selectors for security, messaging, cache, observability, tenancy, deployment, starter modules, API Gateway, and individual resilience policies.
+
+API Gateway options include `--api-gateway`, `--gateway-upstream`, `--gateway-route`, `--gateway-public`, `--[no-]gateway-rate-limiting`, `--gateway-requests-per-minute`, `--gateway-max-request-bytes`, `--gateway-max-header-bytes`, and `--gateway-trusted-proxies`. A non-public gateway automatically selects JWT security when no security mode is supplied. Use `backsmith create --help` for the complete current option set.

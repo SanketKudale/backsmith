@@ -92,6 +92,60 @@ public final class CreateCommand implements Callable<Integer> {
     @Option(names = "--bulkhead")
     boolean bulkhead;
 
+    @Option(
+            names = "--api-gateway",
+            description = "Generate a secured Spring Cloud Gateway MVC edge route.")
+    boolean apiGateway;
+
+    @Option(
+            names = "--gateway-upstream",
+            defaultValue = "http://localhost:8081",
+            description = "HTTP(S) upstream origin for the gateway route.")
+    String gatewayUpstream;
+
+    @Option(
+            names = "--gateway-route",
+            defaultValue = "/gateway/**",
+            description = "Inbound gateway path ending in /**.")
+    String gatewayRoute;
+
+    @Option(
+            names = "--gateway-public",
+            description = "Permit unauthenticated access to the gateway route.")
+    boolean gatewayPublic;
+
+    @Option(
+            names = "--gateway-rate-limiting",
+            negatable = true,
+            defaultValue = "true",
+            fallbackValue = "true",
+            description = "Enable per-client gateway token-bucket limits.")
+    boolean gatewayRateLimiting;
+
+    @Option(
+            names = "--gateway-requests-per-minute",
+            defaultValue = "120",
+            description = "Token-bucket capacity refilled once per minute.")
+    int gatewayRequestsPerMinute;
+
+    @Option(
+            names = "--gateway-max-request-bytes",
+            defaultValue = "10485760",
+            description = "Maximum proxied request body size in bytes.")
+    long gatewayMaxRequestBytes;
+
+    @Option(
+            names = "--gateway-max-header-bytes",
+            defaultValue = "16384",
+            description = "Maximum proxied request-header size in bytes.")
+    long gatewayMaxHeaderBytes;
+
+    @Option(
+            names = "--gateway-trusted-proxies",
+            defaultValue = "127\\.0\\.0\\.1|::1",
+            description = "Java regex for trusted forwarding proxies.")
+    String gatewayTrustedProxies;
+
     @Option(names = "--openapi", defaultValue = "true", fallbackValue = "true")
     boolean openapi;
 
@@ -160,6 +214,9 @@ public final class CreateCommand implements Callable<Integer> {
                             "Project name is required in non-interactive mode");
                 }
                 if (starterAuth && security.equalsIgnoreCase("none")) {
+                    security = "jwt";
+                }
+                if (apiGateway && !gatewayPublic && security.equalsIgnoreCase("none")) {
                     security = "jwt";
                 }
                 validateSelections();
@@ -309,6 +366,18 @@ public final class CreateCommand implements Callable<Integer> {
         var selectedResilience =
                 new ProjectConfiguration.ResilienceConfiguration(
                         circuitBreaker, retry, timeout, rateLimiter, bulkhead);
+        var selectedGateway =
+                new ProjectConfiguration.ApiGatewayConfiguration(
+                        apiGateway,
+                        gatewayRoute,
+                        gatewayUpstream,
+                        true,
+                        !gatewayPublic,
+                        gatewayRateLimiting,
+                        gatewayRequestsPerMinute,
+                        gatewayMaxRequestBytes,
+                        gatewayMaxHeaderBytes,
+                        gatewayTrustedProxies);
         return new ProjectConfiguration(
                 base.schemaVersion(),
                 base.project(),
@@ -325,7 +394,8 @@ public final class CreateCommand implements Callable<Integer> {
                 base.testing(),
                 base.generation(),
                 deployment,
-                tenancy);
+                tenancy,
+                selectedGateway);
     }
 
     private void runInteractiveWizard() {
@@ -366,6 +436,15 @@ public final class CreateCommand implements Callable<Integer> {
         timeout = promptBoolean(scanner, "Enable time limits", timeout);
         rateLimiter = promptBoolean(scanner, "Enable rate limiting", rateLimiter);
         bulkhead = promptBoolean(scanner, "Enable bulkheads", bulkhead);
+        apiGateway = promptBoolean(scanner, "Generate an API gateway edge route", apiGateway);
+        if (apiGateway) {
+            gatewayUpstream = prompt(scanner, "Gateway upstream URI", gatewayUpstream);
+            gatewayRoute = prompt(scanner, "Gateway route path", gatewayRoute);
+            gatewayPublic =
+                    promptBoolean(scanner, "Allow unauthenticated gateway requests", gatewayPublic);
+            gatewayRateLimiting =
+                    promptBoolean(scanner, "Enable gateway rate limiting", gatewayRateLimiting);
+        }
         multiTenancy = prompt(scanner, "Multi-tenancy mode", multiTenancy);
         String selectedModules =
                 prompt(scanner, "Starter modules (comma-separated customer,payment)", "");
