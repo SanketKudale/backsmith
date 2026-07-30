@@ -19,7 +19,7 @@ features:
   database: postgresql
   persistence: jpa
   migrations: flyway
-  security: none
+  security: jwt
   messaging: none
   cache: none
   observability: standard
@@ -28,3 +28,14 @@ features:
   tests: true
 modules:
   - payment
+api_gateway:
+  enabled: true
+  route_path: /gateway/**
+  upstream_uri: http://localhost:8081
+  strip_prefix: true
+  require_authentication: true
+  rate_limiting: true
+  requests_per_minute: 120
+  max_request_bytes: 10485760
+  max_header_bytes: 16384
+  trusted_proxies: 127\.0\.0\.1|::1

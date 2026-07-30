@@ -37,6 +37,7 @@ This checklist is intentionally conservative. Checked items are implemented in 1
 
 - [x] persistent JWT authentication, roles, refresh rotation, idempotency, audit, and shared-schema tenancy
 - [x] Kafka, transactional outbox, idempotent consumers, resilience, external integrations, and Redis
+- [x] optional Spring Cloud API Gateway MVC with secure routing, authentication, rate limiting, request limits, trusted proxies, CORS, and security headers
 - [x] modular monolith, clean, onion, CQRS, and microservice layouts
 - [x] generated-project architecture matrix and full-feature build
 - [x] public GitHub Releases with cross-platform archives, launchers, checksums, and installers

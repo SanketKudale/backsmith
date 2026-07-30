@@ -149,6 +149,70 @@ class SpringBootAdapterTest {
                                                 Path.of("src/main/resources/db/migration"))));
     }
 
+    @Test
+    void rendersSecuredRateLimitedApiGateway() {
+        ProjectConfiguration defaults =
+                ProjectConfiguration.defaults("edge-service", Architecture.MICROSERVICE);
+        var security =
+                new ProjectConfiguration.SecurityConfiguration(
+                        "jwt", "roles_and_permissions", true, "auto", true, true);
+        var gateway =
+                new ProjectConfiguration.ApiGatewayConfiguration(
+                        true,
+                        "/edge/**",
+                        "http://orders:8080",
+                        true,
+                        true,
+                        true,
+                        240,
+                        5_242_880,
+                        16_384,
+                        "10\\.0\\.0\\.0/8");
+        var configuration =
+                new ProjectConfiguration(
+                        defaults.schemaVersion(),
+                        defaults.project(),
+                        defaults.runtime(),
+                        defaults.architecture(),
+                        defaults.features(),
+                        defaults.modules(),
+                        defaults.api(),
+                        security,
+                        defaults.messaging(),
+                        defaults.cache(),
+                        defaults.observability(),
+                        defaults.resilience(),
+                        defaults.testing(),
+                        defaults.generation(),
+                        defaults.deployment(),
+                        defaults.multiTenancy(),
+                        gateway);
+
+        var generated = new SpringBootAdapter().createProject(configuration);
+        String pom = generated.get(Path.of("pom.xml"));
+        String application = generated.get(Path.of("src/main/resources/application.yml"));
+        String route =
+                generated.get(
+                        Path.of(
+                                "src/main/java/com/example/edgeservice/shared/gateway/ApiGatewayConfiguration.java"));
+        String securityConfiguration =
+                generated.get(
+                        Path.of(
+                                "src/main/java/com/example/edgeservice/shared/security/SecurityConfiguration.java"));
+
+        assertTrue(pom.contains("spring-cloud-starter-gateway-server-webmvc"));
+        assertTrue(pom.contains("bucket4j_jdk17-caffeine"));
+        assertTrue(application.contains("GATEWAY_UPSTREAM_URI:http://orders:8080"));
+        assertTrue(application.contains("GATEWAY_REQUESTS_PER_MINUTE:240"));
+        assertTrue(route.contains(".setCapacity(properties.requestsPerMinute())"));
+        assertTrue(route.contains(".before(removeRequestHeader(\"Cookie\"))"));
+        assertTrue(securityConfiguration.contains(".anyRequest().authenticated()"));
+        assertTrue(
+                generated.containsKey(
+                        Path.of(
+                                "src/test/java/com/example/edgeservice/shared/gateway/GatewaySecurityHeadersFilterTest.java")));
+    }
+
     private ProjectConfiguration databaseConfiguration(String database) {
         ProjectConfiguration defaults =
                 ProjectConfiguration.defaults("database-matrix", Architecture.LAYERED);

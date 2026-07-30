@@ -10,3 +10,11 @@ docker compose up -d
 ```
 
 OpenAPI UI is available at `http://localhost:8080/swagger-ui.html`; health is at `/actuator/health`.
+
+{{#apiGateway}}
+## API gateway
+
+Requests matching `{{gatewayRoute}}` are forwarded to `{{gatewayUpstream}}`. The generated route applies authentication policy, per-client token-bucket rate limiting, request limits, trusted-proxy handling, cookie stripping, CORS, and security headers.
+
+Configure production values with the `GATEWAY_*` variables in `.env.example`. The default Caffeine rate-limit store is local to one process; replace its `AsyncProxyManager` with a shared Bucket4j backend when a deployment requires one global quota across replicas.
+{{/apiGateway}}

@@ -20,7 +20,8 @@ public record ProjectConfiguration(
         TestingConfiguration testing,
         GenerationConfiguration generation,
         DeploymentConfiguration deployment,
-        MultiTenancyConfiguration multiTenancy) {
+        MultiTenancyConfiguration multiTenancy,
+        ApiGatewayConfiguration apiGateway) {
 
     public ProjectConfiguration {
         if (schemaVersion != 1) {
@@ -54,6 +55,7 @@ public record ProjectConfiguration(
                         ? DeploymentConfiguration.defaults(features.docker())
                         : deployment;
         multiTenancy = multiTenancy == null ? MultiTenancyConfiguration.defaults() : multiTenancy;
+        apiGateway = apiGateway == null ? ApiGatewayConfiguration.defaults() : apiGateway;
         if (modules.contains("authentication") && !security.mode().equalsIgnoreCase("jwt")) {
             throw new IllegalArgumentException(
                     "security.mode: the authentication starter requires jwt");
@@ -74,6 +76,12 @@ public record ProjectConfiguration(
             throw new IllegalArgumentException(
                     "multi_tenancy.mode: shared-schema requires jwt, oauth2, or oidc security");
         }
+        if (apiGateway.enabled()
+                && apiGateway.requireAuthentication()
+                && security.mode().equalsIgnoreCase("none")) {
+            throw new IllegalArgumentException(
+                    "api_gateway.require_authentication: requires a configured security mode");
+        }
     }
 
     public ProjectConfiguration(
@@ -90,6 +98,7 @@ public record ProjectConfiguration(
                 architecture,
                 features,
                 modules,
+                null,
                 null,
                 null,
                 null,
@@ -272,6 +281,85 @@ public record ProjectConfiguration(
     public record MultiTenancyConfiguration(String mode, String resolver) {
         static MultiTenancyConfiguration defaults() {
             return new MultiTenancyConfiguration("none", "header");
+        }
+    }
+
+    public record ApiGatewayConfiguration(
+            boolean enabled,
+            String routePath,
+            String upstreamUri,
+            boolean stripPrefix,
+            boolean requireAuthentication,
+            boolean rateLimiting,
+            int requestsPerMinute,
+            long maxRequestBytes,
+            long maxHeaderBytes,
+            String trustedProxies) {
+        public ApiGatewayConfiguration {
+            routePath = routePath == null ? "/gateway/**" : routePath.trim();
+            upstreamUri = upstreamUri == null ? "http://localhost:8081" : upstreamUri.trim();
+            trustedProxies = trustedProxies == null ? "127\\.0\\.0\\.1|::1" : trustedProxies.trim();
+            if (!routePath.startsWith("/")
+                    || !routePath.endsWith("/**")
+                    || routePath.equals("/**")
+                    || routePath.contains(" ")
+                    || routePath.contains("{")) {
+                throw new IllegalArgumentException(
+                        "api_gateway.route_path: must be an absolute path ending in /**");
+            }
+            java.net.URI upstream;
+            try {
+                upstream = java.net.URI.create(upstreamUri);
+            } catch (IllegalArgumentException exception) {
+                throw new IllegalArgumentException(
+                        "api_gateway.upstream_uri: must be a valid HTTP(S) URI", exception);
+            }
+            if (!Set.of("http", "https")
+                            .contains(
+                                    upstream.getScheme() == null
+                                            ? ""
+                                            : upstream.getScheme()
+                                                    .toLowerCase(java.util.Locale.ROOT))
+                    || upstream.getHost() == null
+                    || upstream.getUserInfo() != null
+                    || upstream.getQuery() != null
+                    || upstream.getFragment() != null) {
+                throw new IllegalArgumentException(
+                        "api_gateway.upstream_uri: must be an HTTP(S) origin without credentials, query, or fragment");
+            }
+            if (requestsPerMinute < 1 || requestsPerMinute > 1_000_000) {
+                throw new IllegalArgumentException(
+                        "api_gateway.requests_per_minute: must be between 1 and 1000000");
+            }
+            if (maxRequestBytes < 1 || maxRequestBytes > 107_374_182_400L) {
+                throw new IllegalArgumentException(
+                        "api_gateway.max_request_bytes: must be between 1 byte and 100 GiB");
+            }
+            if (maxHeaderBytes < 1 || maxHeaderBytes > 1_048_576L) {
+                throw new IllegalArgumentException(
+                        "api_gateway.max_header_bytes: must be between 1 byte and 1 MiB");
+            }
+            try {
+                java.util.regex.Pattern.compile(trustedProxies);
+            } catch (java.util.regex.PatternSyntaxException exception) {
+                throw new IllegalArgumentException(
+                        "api_gateway.trusted_proxies: must be a valid regular expression",
+                        exception);
+            }
+        }
+
+        static ApiGatewayConfiguration defaults() {
+            return new ApiGatewayConfiguration(
+                    false,
+                    "/gateway/**",
+                    "http://localhost:8081",
+                    true,
+                    false,
+                    true,
+                    120,
+                    10_485_760,
+                    16_384,
+                    "127\\.0\\.0\\.1|::1");
         }
     }
 
